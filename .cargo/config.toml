@@ -1,0 +1,11 @@
+# <project-root>/.cargo/config.toml
+
+[env]
+ASSETS = { value = "src/assets/", relative = true }
+TS_RS_EXPORT_DIR = { value = "src/bindings", relative = true }
+
+[build]
+target = "i686-win7-windows-msvc"
+
+[unstable]
+build-std = ["core", "std"]

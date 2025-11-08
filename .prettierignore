@@ -1,0 +1,6 @@
+src-tauri/gen/*
+src-tauri/Microsoft.WebView2.FixedVersionRuntime.109.0.1518.78.x86/*
+src/bindings/*
+src/assets/auto-imports.json
+src/lib/auto-imports.d.ts
+pnpm-lock.yaml

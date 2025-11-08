@@ -5,6 +5,13 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "process:default",
+    "dialog:default",
+    "log:default",
+    "axum:default",
+    "pinia:default",
+    "core:window:allow-show",
+    "clipboard-manager:allow-read-text",
+    "fs:allow-desktop-write"
   ]
 }

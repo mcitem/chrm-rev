@@ -1,3 +1,7 @@
 fn main() {
-    tauri_build::build()
+    #[cfg(not(target_os = "windows"))]
+    {
+        panic!("");
+    }
+    tauri_build::build();
 }

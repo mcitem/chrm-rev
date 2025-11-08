@@ -1,32 +1,81 @@
-import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
+import vue from '@vitejs/plugin-vue';
+import VueJsx from '@vitejs/plugin-vue-jsx';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath, URL } from 'node:url';
+import AutoImport from 'unplugin-auto-import/vite';
+import ViteFonts from 'unplugin-fonts/vite';
+import { defineConfig } from 'vite';
+import vueDevTools from 'vite-plugin-vue-devtools';
+import vuetify from 'vite-plugin-vuetify';
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [vue()],
+export default defineConfig({
+  plugins: [
+    vue(),
+    VueJsx(),
+    vuetify(),
+    vueDevTools(),
+    ViteFonts({
+      fontsource: {
+        families: [
+          {
+            name: 'Roboto',
+            weights: [400, 500, 700],
+            styles: ['normal'],
+          },
+        ],
+      },
+    }),
+    AutoImport({
+      imports: [
+        'vue',
+        'vue-router',
+        {
+          'vue-i18n': ['useI18n', 't'],
+          'vue-sonner': ['toast'],
+          '@tanstack/vue-query': ['useMutation', 'useQuery', 'useQueryClient'],
+        },
+        {
+          '@/lib/service': ['instance'],
+          '@/lib/router': ['router'],
+        },
+        {
+          '@tauri-apps/plugin-log': ['info'],
+        },
+      ],
+      dts: 'src/lib/auto-imports.d.ts',
+      eslintrc: {
+        enabled: true,
+        filepath: 'src/assets/auto-imports.json',
+      },
+    }),
+  ],
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
+  build: {
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('monaco-editor')) return 'monaco-editor';
+        },
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: ['**/target/**', '**/src-tauri/**'],
     },
   },
-}));
+});
