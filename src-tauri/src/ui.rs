@@ -1,22 +1,21 @@
-// use std::sync::atomic::AtomicBool;
+pub mod invoke_handler;
+pub mod plugin;
+pub mod run_event;
+pub mod setup;
 
-use tauri::Builder;
-use tauri::Runtime;
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    // 防止休眠
+    unsafe {
+        use windows_sys::Win32::System::Power;
+        // https://learn.microsoft.com/zh-cn/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate
+        Power::SetThreadExecutionState(
+            Power::ES_CONTINUOUS | Power::ES_DISPLAY_REQUIRED | Power::ES_SYSTEM_REQUIRED,
+        );
+    };
 
-mod invoke_handler;
-mod plugin;
-mod run_event;
-mod setup;
-
-// pub(self) static UI_READY: AtomicBool = AtomicBool::new(false);
-
-/// tauri Builder 会导致RA响应变慢，故放到独立mod中
-pub(super) fn run_inner<R: Runtime>(b: Builder<R>) -> Result<(), tauri::Error> {
-    plugin::plugins(b)
+    Ok(plugin::plugins(tauri::Builder::default())
         .setup(setup::setup)
         .invoke_handler(invoke_handler::invoke_handler())
         .build(tauri::generate_context!())?
-        .run(run_event::run_event);
-
-    Ok(())
+        .run(run_event::run_event))
 }

@@ -1,65 +1,53 @@
 use sea_orm::entity::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::utils::NextPrimaryKey;
+use crate::{entity::student::Difficulty, utils::NextPrimaryKey};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, TS, Serialize)]
-#[sea_orm(table_name = "record")]
-#[ts(rename = "Record")]
+#[sea_orm::model]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "./entity.ts")]
-/// Record Model
-/// 除了id和数量其余都是冗余字段
+#[sea_orm(model_attrs(ts(rename = "Record")))]
+#[sea_orm(model_ex_attrs(ts(rename = "RecordEx")))]
+#[sea_orm(table_name = "record")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: i32,
     pub student_id: i32,
     pub item_id: i32,
     pub student_no: String,
-    pub stu_d_level: String,
+    pub stu_d_level: Difficulty,
     pub quantity: i32,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))")]
     #[serde(with = "rust_decimal::serde::str")]
     #[ts(type = "string")]
+    /// 折后单价快照
     pub discount_price: Decimal,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))")]
     #[serde(with = "rust_decimal::serde::str")]
     #[ts(type = "string")]
+    /// 原价单价快照
     pub original_price: Decimal,
     pub item_name: String,
     pub item_spec: String,
-}
-
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::item::Entity",
-        from = "Column::ItemId",
-        to = "super::item::Column::Id",
+        belongs_to,
+        from = "item_id",
+        to = "id",
         on_update = "NoAction",
         on_delete = "NoAction"
     )]
-    Item,
+    #[serde(skip_serializing_if = "HasOne::is_none")]
+    pub item: HasOne<super::item::Entity>,
     #[sea_orm(
-        belongs_to = "super::student::Entity",
-        from = "Column::StudentId",
-        to = "super::student::Column::Id",
+        belongs_to,
+        from = "student_id",
+        to = "id",
         on_update = "NoAction",
         on_delete = "NoAction"
     )]
-    Student,
-}
-
-impl Related<super::item::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Item.def()
-    }
-}
-
-impl Related<super::student::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Student.def()
-    }
+    #[serde(skip_serializing_if = "HasOne::is_none")]
+    pub student: HasOne<super::student::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

@@ -1,47 +1,29 @@
-import vue from '@vitejs/plugin-vue';
-import VueJsx from '@vitejs/plugin-vue-jsx';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath, URL } from 'node:url';
-import AutoImport from 'unplugin-auto-import/vite';
-import ViteFonts from 'unplugin-fonts/vite';
-import { defineConfig } from 'vite';
-import vueDevTools from 'vite-plugin-vue-devtools';
-import vuetify from 'vite-plugin-vuetify';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { resolve } from 'node:path'
+import { AntdvNextResolver } from '@antdv-next/auto-import-resolver'
+import vue from '@vitejs/plugin-vue'
+import VueJsx from '@vitejs/plugin-vue-jsx'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
     vue(),
     VueJsx(),
-    vuetify(),
-    vueDevTools(),
-    ViteFonts({
-      fontsource: {
-        families: [
-          {
-            name: 'Roboto',
-            weights: [400, 500, 700],
-            styles: ['normal'],
-          },
-        ],
-      },
+    Components({
+      dts: 'src/lib/components.d.ts',
+      resolvers: [AntdvNextResolver()],
     }),
     AutoImport({
       imports: [
         'vue',
         'vue-router',
         {
-          'vue-i18n': ['useI18n', 't'],
-          'vue-sonner': ['toast'],
           '@tanstack/vue-query': ['useMutation', 'useQuery', 'useQueryClient'],
         },
         {
           '@/lib/service': ['instance'],
           '@/lib/router': ['router'],
-        },
-        {
-          '@tauri-apps/plugin-log': ['info'],
         },
       ],
       dts: 'src/lib/auto-imports.d.ts',
@@ -51,31 +33,40 @@ export default defineConfig({
       },
     }),
   ],
-
   build: {
-    chunkSizeWarningLimit: 4000,
+    target: ['chrome109', 'edge109'],
+    chunkSizeWarningLimit: 4300,
     rollupOptions: {
+      checks: { pluginTimings: false },
       input: {
-        main: resolve(__dirname, 'index.html'),
+        main: resolve('index.html'),
       },
       output: {
         manualChunks(id) {
-          if (id.includes('monaco-editor')) return 'monaco-editor';
+          if (id.includes('monaco-editor'))
+            return 'monaco-editor'
         },
       },
     },
   },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@': resolve('./src'),
+      '@root': resolve('.'),
     },
   },
   clearScreen: false,
+
   server: {
     port: 1420,
     strictPort: true,
     watch: {
       ignored: ['**/target/**', '**/src-tauri/**'],
     },
+    proxy: {
+      '/docs': {
+        target: 'http://localhost:5173',
+      },
+    },
   },
-});
+})

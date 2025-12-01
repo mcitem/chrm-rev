@@ -1,4 +1,4 @@
 [workspace]
-members = ["src-tauri"]
-default-members = ["src-tauri"]
+members = [ "src-tauri" ]
+default-members = [ "src-tauri" ]
 resolver = "3"

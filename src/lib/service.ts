@@ -1,105 +1,147 @@
-import { ConfigInner } from '@/bindings/config';
-import type { Item, Student } from '@/bindings/entity';
-import type { OrderPagination, PaginateData } from '@/bindings/utils';
-import { keepPreviousData, useQuery } from '@tanstack/vue-query';
-import axios, { AxiosError } from 'axios';
-import { toast } from 'vue-sonner';
+import type { AxiosError as AxiosErrorRaw } from 'axios'
+import type { Reactive } from 'vue'
+import type { ConfigInner } from '@/bindings/config_v2'
+import type { Item, Record, Student } from '@/bindings/entity'
+import type {
+  AllRecordWithSummary,
+  StudentRecordWithSummary,
+} from '@/bindings/summary'
+import type { OrderPagination, PaginateData } from '@/bindings/utils'
+import { keepPreviousData } from '@tanstack/vue-query'
+import axios from 'axios'
+
+export type AxiosError = AxiosErrorRaw<
+  {
+    msg?: string
+    error?: string
+  },
+  unknown
+>
 
 export const instance = axios.create({
-  baseURL: 'https://axum.localhost',
-  timeout: 5000,
+  baseURL: 'https://axum.localhost/',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
-});
+})
 
-instance.interceptors.response.use(
-  function (response) {
-    if (
-      response.status === 200 &&
-      response.headers['content-type'] === 'application/json' &&
-      response.data
-    ) {
-      // 如果返回200下的json，自动解出封装的data，不存在data字段则返回整个body
-      return response.data.data ?? response.data;
+/// 只能被调用一次
+export class RegisterInterceptor {
+  static #instance: RegisterInterceptor | null = null
+  constructor(messageErrorFn?: (msg: unknown) => void) {
+    if (RegisterInterceptor.#instance) {
+      return RegisterInterceptor.#instance
     }
-    // 其他情况直接返回原始axios response
-    return response;
-  },
-  function (
-    error: AxiosError<
-      {
-        msg?: string;
-        error?: string;
+    console.log('Registering interceptor...')
+
+    RegisterInterceptor.#instance = this
+
+    instance.interceptors.response.use(
+      (response) => {
+        if (
+          response.status === 200
+          && response.headers['content-type'] === 'application/json'
+          && response.data
+        ) {
+          return response.data
+        }
+        return response
       },
-      unknown
-    >
-  ) {
-    console.log(error);
-    if (error.response?.data.msg) {
-      toast.error(error.response.data.msg);
-    }
-
-    if (error.response?.data.error) {
-      toast.error(error.response.data.error);
-    }
-
-    if (
-      error.response?.headers['content-type'] === 'text/plain; charset=utf-8' &&
-      typeof error.response.data === 'string'
-    ) {
-      toast.error(error.response.data);
-    }
-
-    return Promise.reject(error);
+      (error: AxiosError) => {
+        console.error(error.response?.data.error)
+        if (error.response?.data.msg) {
+          console.error(error.response.data.msg)
+          messageErrorFn?.(error.response.data.msg)
+        }
+        if (
+          error.response?.headers['content-type']
+          === 'text/plain; charset=utf-8'
+          && typeof error.response.data === 'string'
+        ) {
+          console.error(error.response.data)
+          messageErrorFn?.(error.response.data)
+        }
+        return Promise.reject(error)
+      },
+    )
   }
-);
-
-export function GetStudents(Params: OrderPagination) {
-  return useQuery<PaginateData<Student[]>>({
-    queryKey: ['/student/list', Params],
-    staleTime: 1000 * 60 * 5,
-    placeholderData: keepPreviousData,
-    queryFn: () =>
-      instance.get('/student/list', {
-        params: Params,
-      }),
-  });
-}
-
-export function GetItems(Params: OrderPagination) {
-  return useQuery<PaginateData<Item[]>>({
-    queryKey: ['/item/list', Params],
-    staleTime: 1000 * 60 * 5,
-    placeholderData: keepPreviousData,
-    queryFn: () =>
-      instance.get('/item/list', {
-        params: Params,
-      }),
-  });
 }
 
 export function useConfig() {
   return useQuery<ConfigInner>({
     queryKey: ['/sys/config'],
-    staleTime: 1000 * 60 * 5,
     placeholderData: keepPreviousData,
     queryFn: () => instance.get('/sys/config'),
-  });
+  })
 }
-/**
- * time: %Y-%m-%d %H:%M:%S
- * date: 由配置决定,建议设置为 %Y-%m-%d
- */
+
 export function useSysTime() {
   return useQuery<{
-    time: string;
-    year: number;
-    date: string;
+    time: string
+    year: number
+    date: string
   }>({
     queryKey: ['/sys/time'],
     queryFn: () => instance.get('/sys/time'),
-    // 在dev模式下不更新，避免干扰调试
-    refetchInterval: import.meta.env.DEV ? false : 1000,
-  });
+    // 在dev模式下低频更新，避免干扰调试
+    refetchInterval: import.meta.env.DEV ? 10000 : 1000,
+  })
 }
+
+export function useStudents(
+  Params: OrderPagination | Reactive<OrderPagination>,
+) {
+  return useQuery<PaginateData<Student[]>>({
+    queryKey: ['biz', 'student', 'list', Params],
+    placeholderData: keepPreviousData,
+    queryFn: () =>
+      instance.get('/biz/student/list', {
+        params: Params,
+      }),
+  })
+}
+
+export function useItems(Params: OrderPagination | Reactive<OrderPagination>) {
+  return useQuery<PaginateData<Item[]>>({
+    queryKey: ['biz', 'item', 'list', Params],
+    placeholderData: keepPreviousData,
+    queryFn: () =>
+      instance.get('/biz/item/list', {
+        params: Params,
+      }),
+  })
+}
+
+export function useStudent(id: number) {
+  return useQuery<Student>({
+    queryKey: ['biz', 'student', id],
+    placeholderData: keepPreviousData,
+    queryFn: () => instance.get(`/biz/student/${id}`),
+  })
+}
+
+export function useAllRecordsWithSummary() {
+  return useQuery<AllRecordWithSummary>({
+    queryKey: ['biz', 'record', 'all_with_summary'],
+    queryFn: () => instance.get(`/biz/record/all_with_summary`),
+  })
+}
+
+export function useStudentRecords(id: number) {
+  return useQuery<Record[]>({
+    queryKey: ['biz', 'record', id],
+    placeholderData: keepPreviousData,
+    queryFn: () => instance.get(`/biz/student/${id}/record`),
+  })
+}
+
+export function useStudentRecordsWithSummary(id: number) {
+  return useQuery<StudentRecordWithSummary>({
+    queryKey: ['biz', 'record', id, 'with_summary'],
+    placeholderData: keepPreviousData,
+    queryFn: () => instance.get(`/biz/student/${id}/record_with_summary`),
+  })
+}
+
+export const DB_DIRTY = 'System(Dataloader(DbDirty))'

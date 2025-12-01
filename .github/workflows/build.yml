@@ -5,78 +5,142 @@ on:
     tags:
       - 'v*.*.*'
 jobs:
-  build_fixed-webview2:
+  lint:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           targets: i686-pc-windows-msvc
-          components: rust-std
-
-      - uses: Swatinem/rust-cache@v2
-
+          components: rust-std rust-src
       - run: |
+          pnpm ts-rs
+          pnpm install
+          pnpm type-check
+          pnpm lint
+          pnpm build:con
+
+  i686-win7-windows-msvc_fixed-webview2:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          targets: i686-pc-windows-msvc
+          components: rust-std rust-src
+      - run: |
+          choco install jq -y
+
+          $sha="${{ github.sha }}"
+          $job="${{ github.job }}"
+          $p=gc package.json|ConvertFrom-Json
+          $NEW_VERSION="$($p.version)-$job-$sha-$(($(Get-Date).ToUniversalTime().AddHours(8)).ToString('yyyy-MM-ddTHH:mm:ss+08:00'))"
+
+          jq --arg new_version "$NEW_VERSION" '.version = $new_version' .\package.json > .\package.json.temp
+          mv .\package.json.temp .\package.json -Force
+
+          cat .\package.json
+          cat .\src-tauri\tauri.conf.json
+          cargo --version
+
           pnpm install
           pnpm tauri build
 
-          # 重命名 x64 安装程序为 x86（实际产物是x86的，受host环境影响变成x64标识）
           cd ./target/i686-win7-windows-msvc/release/bundle/nsis
           Get-ChildItem -Path . -Filter '*x64*.exe' -File | ForEach-Object {
             $new = $_.Name -replace 'x64','x86'
             if (-not (Test-Path $new)) { Rename-Item -LiteralPath $_.FullName -NewName $new }
           }
-      - uses: actions/upload-artifact@v4
+
+      - uses: actions/upload-artifact@v7
         with:
           name: chrm-rev_fixed-webview2
           path: ./target/i686-win7-windows-msvc/release/bundle/nsis/*
-  build_skip-webview2:
+
+  i686-win7-windows-msvc_skip-webview2:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           targets: i686-pc-windows-msvc
-          components: rust-std
-
-      - uses: Swatinem/rust-cache@v2
-
+          components: rust-std rust-src
       - run: |
-          # 修改 tauri.conf.json  设置 webviewInstallMode 为 skip
           choco install jq -y
-          cd ./src-tauri
-          jq '.bundle.windows.webviewInstallMode = {"type": "skip"}' tauri.conf.json > temp.json
-          pnpm install shx -g
-          pnpm shx mv temp.json tauri.conf.json
-          cd ..
+
+          $sha="${{ github.sha }}"
+          $job="${{ github.job }}"
+          $p=gc package.json|ConvertFrom-Json
+          $NEW_VERSION="$($p.version)-$job-$sha-$(($(Get-Date).ToUniversalTime().AddHours(8)).ToString('yyyy-MM-ddTHH:mm:ss+08:00'))"
+
+          jq --arg new_version "$NEW_VERSION" '.version = $new_version' .\package.json > .\package.json.temp
+          mv .\package.json.temp .\package.json -Force
+
+          jq '.bundle.windows.webviewInstallMode = {"type": "skip"}' .\src-tauri\tauri.conf.json > .\src-tauri\tauri.conf.json.temp
+          mv .\src-tauri\tauri.conf.json.temp .\src-tauri\tauri.conf.json -Force
+
+          cat .\package.json
+          cat .\src-tauri\tauri.conf.json
+          cargo --version
 
           pnpm install
           pnpm tauri build
 
-          # 重命名 x64 安装程序为 x86（实际产物是x86的，受host环境影响变成x64标识）
           cd ./target/i686-win7-windows-msvc/release/bundle/nsis
           Get-ChildItem -Path . -Filter '*x64*.exe' -File | ForEach-Object {
             $new = $_.Name -replace 'x64','x86'
             if (-not (Test-Path $new)) { Rename-Item -LiteralPath $_.FullName -NewName $new }
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: chrm-rev_skip-webview2
           path: ./target/i686-win7-windows-msvc/release/bundle/nsis/*
+
+  stable_x86_64-pc-windows-msvc_skip-webview2:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          choco install jq -y
+
+          $sha="${{ github.sha }}"
+          $job="${{ github.job }}"
+          $p=gc package.json|ConvertFrom-Json
+          $NEW_VERSION="$($p.version)-$job-$sha-$(($(Get-Date).ToUniversalTime().AddHours(8)).ToString('yyyy-MM-ddTHH:mm:ss+08:00'))"
+
+          jq --arg new_version "$NEW_VERSION" '.version = $new_version' .\package.json > .\package.json.temp
+          mv .\package.json.temp .\package.json -Force
+
+          jq '.bundle.windows.webviewInstallMode = {"type": "skip"}' .\src-tauri\tauri.conf.json > .\src-tauri\tauri.conf.json.temp
+          mv .\src-tauri\tauri.conf.json.temp .\src-tauri\tauri.conf.json -Force
+
+          cat .\package.json
+          cat .\src-tauri\tauri.conf.json
+
+          rm ./.cargo/config.toml
+          rm ./rust-toolchain.toml
+          rustup default stable
+          cargo --version
+
+          pnpm install
+          pnpm tauri build -t x86_64-pc-windows-msvc
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: chrm-rev_skip-webview2_x64
+          path: ./target/x86_64-pc-windows-msvc/release/bundle/nsis/*

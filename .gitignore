@@ -6,3 +6,6 @@ caches
 dist
 *.sqlite
 *.http
+
+docs/.vitepress/dist
+docs/.vitepress/cache

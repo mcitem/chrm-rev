@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "chrm-rev",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.mcitem.chrm-rev",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm dev:con",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build:con",
     "frontendDist": "../dist"
   },
   "app": {
@@ -29,9 +29,7 @@
     ],
     "windows": {
       "nsis": {
-        "languages": [
-          "SimpChinese"
-        ]
+        "languages": ["SimpChinese"]
       },
       "webviewInstallMode": {
         "path": "Microsoft.WebView2.FixedVersionRuntime.109.0.1518.78.x86",

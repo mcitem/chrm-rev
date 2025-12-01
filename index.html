@@ -5,6 +5,34 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chrm Rev</title>
+    <style>
+      #loading,
+      .loading {
+        z-index: 9999;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 25px;
+        aspect-ratio: 1.154;
+        --_g: no-repeat radial-gradient(farthest-side, #0694cd 90%, #0000);
+        background:
+          var(--_g) 50% 0,
+          var(--_g) 0 100%,
+          var(--_g) 100% 100%;
+        background-size: 35% calc(35% * 1.154);
+        animation: loading-184 1s infinite;
+      }
+      @keyframes loading-184 {
+        50%,
+        100% {
+          background-position:
+            100% 100%,
+            50% 0,
+            0 100%;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

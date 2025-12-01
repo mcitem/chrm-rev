@@ -3,4 +3,4 @@
 /**
  * 认定困难级别 eg: 一般困难, 困难, 特别困难
  */
-export type Difficulty = "Peaceful" | "Easy" | "Normal" | "Hard";
+export type Difficulty = "不困难" | "一般困难" | "困难" | "特别困难";

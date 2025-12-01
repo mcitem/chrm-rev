@@ -8,4 +8,7 @@ TS_RS_EXPORT_DIR = { value = "src/bindings", relative = true }
 target = "i686-win7-windows-msvc"
 
 [unstable]
-build-std = ["core", "std"]
+build-std = [
+  "core",
+  "std"
+]

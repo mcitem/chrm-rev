@@ -1,41 +1,34 @@
-use prelude::*;
+use axum::Router;
 use sea_orm::DatabaseConnection;
-use state::AppState;
 
-/// 用于 handle 的预导入
+use crate::{
+    config::Config,
+    router::state::{AppState, ComplexState},
+};
+
 pub(self) mod prelude;
 
-/// 系统接口
+mod response;
+pub mod state;
+
+pub mod utils;
+
+pub mod biz;
+
 mod sys;
 
-/// 迁移状态接口
-mod migration;
-/// 响应封装工具
-mod response;
-/// 状态管理
-mod state;
-/// 其他工具
-mod utils;
-
-/// item本身接受
-mod item;
-/// 记录相关接口
-mod record;
-
-/// 学生接口
-mod student;
-
-pub fn app(db: DatabaseConnection) -> Router<()> {
-    let state = AppState { db };
+pub fn app(
+    config: Config,
+    db: DatabaseConnection,
+    app: tauri::AppHandle<impl tauri::Runtime>,
+) -> Router<()> {
+    let state = AppState {
+        db: db.clone(),
+        config,
+    };
+    let complex = ComplexState { db, app };
 
     Router::new()
-        .route("/", get(async || "hello"))
-        .nest("/sys", sys::router())
-        .nest("/migration", migration::router(state.clone()))
-        .nest("/item", item::router(state.clone()))
-        .nest("/student", student::router(state.clone()))
-        .nest("/record", record::router(state.clone()))
-        .with_state(state)
+        .nest("/sys", sys::router(complex))
+        .nest("/biz", biz::router(state.clone()))
 }
-
-// async fn get_state(State(s): State<AppState>) {}

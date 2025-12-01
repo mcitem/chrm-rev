@@ -2,11 +2,6 @@
 
 export type ExportRequest = { sign: string, };
 
-export type MigrateAtype = "AnalyzeOnly" | "Import" | "Skip";
-
-export type MigrateUp = { path?: string, atype: MigrateAtype, };
-
-/**
- * 对record进行操作的参数
- */
 export type OperationRecord = { item_id: number, stu_id: number, };
+
+export type SetItemRequest = { quantity: number, };

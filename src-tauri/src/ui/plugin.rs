@@ -1,5 +1,7 @@
 use tauri::{Manager, Runtime};
-pub(super) fn plugins<R: Runtime>(b: tauri::Builder<R>) -> tauri::Builder<R> {
+
+#[inline(always)]
+pub fn plugins<R: Runtime>(b: tauri::Builder<R>) -> tauri::Builder<R> {
     let level = if cfg!(debug_assertions) {
         log::LevelFilter::Debug
     } else {
@@ -8,6 +10,7 @@ pub(super) fn plugins<R: Runtime>(b: tauri::Builder<R>) -> tauri::Builder<R> {
 
     b.plugin(
         tauri_plugin_log::Builder::new()
+            .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
             .level(level)
             .filter(|metadata| {
                 // https://github.com/tauri-apps/tauri/issues/8494
@@ -25,5 +28,5 @@ pub(super) fn plugins<R: Runtime>(b: tauri::Builder<R>) -> tauri::Builder<R> {
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_clipboard_manager::init())
     .plugin(tauri_plugin_fs::init())
-    .plugin(tauri_plugin_pinia::init())
+    .plugin(tauri_plugin_axum::init(axum::Router::new()))
 }

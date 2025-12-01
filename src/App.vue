@@ -1,55 +1,35 @@
 <template>
-  <RouterView />
-  <VueQueryDevtools button-position="bottom-left" />
-  <Toaster :theme="state" expand />
+  <a-config-provider
+    :locale="zhCN"
+    :theme="{
+      algorithm:
+        state === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    }"
+  >
+    <a-app>
+      <AppInner />
+    </a-app>
+  </a-config-provider>
 </template>
 
-<script setup lang="ts">
-import { useStore } from '@/lib/stores';
-import { VueQueryDevtools } from '@tanstack/vue-query-devtools';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { useColorMode } from '@vueuse/core';
-import { Toaster } from 'vue-sonner';
-import { useTheme } from 'vuetify/lib/composables/theme.mjs';
+<script setup lang="tsx">
+import packageJson from '@root/package.json'
+import { useColorMode } from '@vueuse/core'
+import { App, theme } from 'antdv-next'
+import zhCN from 'antdv-next/locale/zh_CN'
+import { RegisterInterceptor } from './lib/service'
 
-// 等待vue加载完后再显示窗口，避免白屏
-const main = getCurrentWebviewWindow();
-onMounted(() => {
-  main.show();
-});
+const { state } = useColorMode()
 
-// 验证迁移状态，并跳转到首页
-const { data: MigrateStatus } = useQuery<boolean>({
-  queryKey: ['/migration/status'],
-  queryFn: () => instance.get('/migration/status'),
-});
+console.log(packageJson.version)
 
-const currentRoute = useRoute();
-watch(MigrateStatus, newValue => {
-  if (newValue === undefined) return;
-  // V=true表示已经迁移完成，跳转到首页
-  // V=false表示未迁移，跳转到初始化页面
-  const targetPath = newValue ? '/dashboard/index' : '/init';
-  if (currentRoute.path !== targetPath) {
-    console.log('Navigating to', targetPath);
-    router.replace(targetPath);
-  }
-});
-
-// F5刷新时保存TAB数据
-const store = useStore();
-window.addEventListener('beforeunload', () => {
-  store.$tauri.saveAllNow();
-});
-
-// 主题同步到vuetify
-const { state } = useColorMode();
-const vuetifyTheme = useTheme();
-watch(
-  state,
-  newVal => {
-    vuetifyTheme.change(newVal);
+const AppInner = defineComponent({
+  setup() {
+    onMounted(() => {
+      const { message } = App.useApp()
+      new RegisterInterceptor(message.error)
+    })
+    return () => <router-view />
   },
-  { immediate: true }
-);
+})
 </script>

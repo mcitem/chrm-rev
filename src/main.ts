@@ -1,35 +1,21 @@
-import App from '@/App.vue';
-import '@/assets/index.css';
-import router from '@/lib/router';
-import pinia from '@/lib/stores';
-import '@mdi/font/css/materialdesignicons.css';
-import { VueQueryPlugin } from '@tanstack/vue-query';
-import 'unfonts.css';
-import { createApp } from 'vue';
-import 'vue-sonner/style.css';
-import { createVuetify } from 'vuetify';
-import { zhHans, en } from 'vuetify/locale';
-import 'vuetify/styles';
+import { VueQueryPlugin } from '@tanstack/vue-query'
+import { createApp } from 'vue'
+import App from '@/App.vue'
+import router from '@/lib/router'
+import pinia from '@/lib/stores'
+import './assets/index.css'
+import '@/lib/editor'
 
-const vuetify = createVuetify({
-  icons: {
-    defaultSet: 'mdi',
-  },
-  locale: {
-    locale: 'zhHans',
-    fallback: 'en',
-    messages: { zhHans, en },
-  },
-  theme: { defaultTheme: 'system' },
-});
+const app = createApp(App)
 
-const app = createApp(App);
-
-app.use(pinia);
-app.use(router);
-app.use(vuetify);
+app.use(pinia)
+app.use(router)
 app.use(VueQueryPlugin, {
   enableDevtoolsV6Plugin: true,
-});
+})
 
-app.mount('#root');
+app.mount('#root')
+
+document.addEventListener('contextmenu', (event) => {
+  event.preventDefault()
+})
