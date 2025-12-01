@@ -60,11 +60,11 @@ jobs:
       - run: |
           # 修改 tauri.conf.json  设置 webviewInstallMode 为 skip
           choco install jq -y
-          cd ./src-tauri
-          jq '.bundle.windows.webviewInstallMode = {"type": "skip"}' tauri.conf.json > temp.json
+          jq '.bundle.windows.webviewInstallMode = {"type": "skip"}' .\src-tauri\tauri.conf.json > .\src-tauri\temp.json
           pnpm install shx -g
-          pnpm shx mv temp.json tauri.conf.json
-          cd ..
+          pnpm shx mv .\src-tauri\temp.json .\src-tauri\tauri.conf.json
+          cat .\src-tauri\tauri.conf.json
+
 
           pnpm install
           pnpm tauri build
