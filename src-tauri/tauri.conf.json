@@ -29,9 +29,7 @@
     ],
     "windows": {
       "nsis": {
-        "languages": [
-          "SimpChinese"
-        ]
+        "languages": ["SimpChinese"]
       },
       "webviewInstallMode": {
         "path": "Microsoft.WebView2.FixedVersionRuntime.109.0.1518.78.x86",
