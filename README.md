@@ -4,6 +4,10 @@
 
     “爱心驿站”是岭南师范学院学生处下属的非营利性学生资助项目，致力于为学生服务，经认定的家庭经济困难学子在驿站购买生活用品和学习用品时可享受相应折扣。
 
+## Preview
+
+![预览](./docs/assets/preview.png)
+
 ### Continuation of Chrm
 
 本项目（`chrm-rev`）是原 Chrm 系统（© 2013-2019 RT Studio Corporation 版权所有）的延续版本。
