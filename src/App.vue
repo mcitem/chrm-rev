@@ -6,23 +6,37 @@
 
 <script setup lang="ts">
 import { useStore } from '@/lib/stores';
+import {
+  DefaultError,
+  QueryObserverResult,
+  RefetchOptions,
+} from '@tanstack/vue-query';
 import { VueQueryDevtools } from '@tanstack/vue-query-devtools';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useColorMode } from '@vueuse/core';
 import { Toaster } from 'vue-sonner';
 import { useTheme } from 'vuetify/lib/composables/theme.mjs';
 
-// 等待vue加载完后再显示窗口，避免白屏
+export interface AppContext {
+  refetch: (
+    options?: RefetchOptions | undefined
+  ) => Promise<QueryObserverResult<boolean, DefaultError>>;
+}
+
+// 用于等待vue加载完后再显示窗口，避免白屏
 const main = getCurrentWebviewWindow();
-onMounted(() => {
-  main.show();
-});
 
 // 验证迁移状态，并跳转到首页
-const { data: MigrateStatus } = useQuery<boolean>({
+const MigrateStatusQuery = useQuery<boolean>({
   queryKey: ['/migration/status'],
   queryFn: () => instance.get('/migration/status'),
 });
+
+provide<AppContext>('AppContext', {
+  refetch: MigrateStatusQuery.refetch,
+});
+
+const { data: MigrateStatus } = MigrateStatusQuery;
 
 const currentRoute = useRoute();
 watch(MigrateStatus, newValue => {
@@ -32,7 +46,11 @@ watch(MigrateStatus, newValue => {
   const targetPath = newValue ? '/dashboard/index' : '/init';
   if (currentRoute.path !== targetPath) {
     console.log('Navigating to', targetPath);
-    router.replace(targetPath);
+    router.replace(targetPath).then(() => {
+      main.show();
+    });
+  } else {
+    main.show();
   }
 });
 

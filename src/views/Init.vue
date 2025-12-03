@@ -38,6 +38,7 @@
         <div>7折价 {{ item0?.p_normal ?? '无' }}</div>
         <div>原价 {{ item0?.price ?? '无' }}</div>
         <div>积分 {{ item0?.p_score ?? '无' }}</div>
+        <div>标签 {{ item0?.tags ?? '无' }}</div>
       </div>
       <div>
         解析的学生第一行数据

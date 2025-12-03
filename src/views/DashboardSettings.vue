@@ -41,13 +41,13 @@
     <!-- <v-btn @click="() => {}" color="red" v-tooltip:top="`清空电子表中的数据`">
       清空电子表
     </v-btn> -->
-    <!-- <v-btn
-      @click="() => {}"
+    <v-btn
+      @click="on_reset_db"
       color="red"
       v-tooltip:top="`重置数据库到未初始化状态`"
     >
       重置数据库
-    </v-btn> -->
+    </v-btn>
   </div>
   <div class="flex justify-start gap-2 py-2">
     <v-btn
@@ -143,21 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { useConfig } from '@/lib/service';
-import { instance } from '@/lib/service';
-import { invoke } from '@tauri-apps/api/core';
-import { useColorMode } from '@vueuse/core';
-
-const queryClient = useQueryClient();
-// import { AxiosError } from 'axios';
-
-const { store } = useColorMode();
-
-// const queryClient = useQueryClient();
-const { data: config } = useConfig();
-
 // const darftEXportPath = ref('C:/Users/mcitem/Desktop/1.xlsx');
-
 // const setEXportPathMutation = useMutation({
 //   mutationFn: (advance: boolean) => {
 //     return instance.post(
@@ -175,4 +161,29 @@ const { data: config } = useConfig();
 //     toast.error(err?.response?.data?.message || '设置失败');
 //   },
 // });
+import { type AppContext } from '@/App.vue';
+import { useConfig } from '@/lib/service';
+import { instance } from '@/lib/service';
+import { sudo } from '@/lib/utils';
+import { invoke } from '@tauri-apps/api/core';
+import { useColorMode } from '@vueuse/core';
+
+const queryClient = useQueryClient();
+// import { AxiosError } from 'axios';
+
+const { store } = useColorMode();
+
+// const queryClient = useQueryClient();
+const { data: config } = useConfig();
+
+const appContext = inject<AppContext>('AppContext')!;
+
+const on_reset_db = () => {
+  sudo().then(() => {
+    instance.get(`/migration/down`).then(() => {
+      queryClient.clear();
+      appContext.refetch();
+    });
+  });
+};
 </script>
