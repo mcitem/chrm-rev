@@ -32,6 +32,7 @@ pub struct IContext {
     i_p_hard: usize,
     i_p: usize,
     i_p_score: usize,
+    i_tags: Option<usize>,
 }
 
 fn find(title_row: &[Data], name: impl AsRef<str>) -> Result<usize, AppErr> {
@@ -50,6 +51,7 @@ pub fn i_analyze(i_title: &[Data]) -> Result<IContext, AppErr> {
         i_p_hard: find(i_title, "3折价")?,
         i_p: find(i_title, "原价")?,
         i_p_score: find(i_title, "积分")?,
+        i_tags: i_title.iter().position(|cell| cell == "标签"),
     })
 }
 pub fn s_analyze(s_title: &[Data]) -> Result<SContext, AppErr> {
@@ -149,7 +151,7 @@ pub fn i_build_active_model(
         p_easy: decimal(row, ctx.i_p_easy, y)?,
         p_normal: decimal(row, ctx.i_p_normal, y)?,
         p_hard: decimal(row, ctx.i_p_hard, y)?,
-        ..Default::default()
+        tags: string_null(row, ctx.i_tags),
     })
 }
 /// y 行号 供提示信息使用

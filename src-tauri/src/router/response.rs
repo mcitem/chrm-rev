@@ -180,4 +180,5 @@ impl From<RSqliteError> for AppErr {
     }
 }
 
+/// 统一响应
 pub type R<T = Value> = Result<AppResponse<T>, AppErr>;

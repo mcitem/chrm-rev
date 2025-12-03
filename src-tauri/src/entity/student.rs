@@ -64,7 +64,7 @@ pub enum Difficulty {
 }
 
 impl Difficulty {
-    // 兼容旧版，使用中文存储
+    // "兼容旧版"，使用中文存储, 也便于从sqlite文件恢复
     pub fn from_str(s: impl AsRef<str>) -> Self {
         match s.as_ref() {
             "Peaceful" | "不困难" => Self::Peaceful,

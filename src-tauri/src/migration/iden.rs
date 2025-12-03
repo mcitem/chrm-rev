@@ -32,7 +32,7 @@ pub enum Item {
     // 进货单价
     Price,
 
-    // 简单模式价格(一般苦难)
+    // 简单模式价格(一般困难)
     PEasy,
     // 普通模式价格（困难）
     PNormal,
@@ -48,6 +48,9 @@ pub enum Item {
 
     // 积分价格
     PScore,
+
+    // option
+    Tags,
 }
 
 // #[derive(DeriveIden)]

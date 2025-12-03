@@ -179,8 +179,18 @@
           <v-col cols="3">
             <v-text-field v-model="formModel.p_hard" label="特别困难" />
           </v-col>
-
-          <v-col>
+          <v-col cols="12">
+            <v-text-field
+              :model-value="formModel.tags"
+              @update:model-value="
+                value => {
+                  formModel.tags = value;
+                }
+              "
+              label="标签"
+            />
+          </v-col>
+          <v-col cols="12">
             <v-text-field
               :model-value="formModel.id"
               @update:model-value="
@@ -278,6 +288,7 @@ const defaultFormModel: Item = {
   p_normal: '',
   p_hard: '',
   p_score: '',
+  tags: '',
 };
 
 const formModel = ref<Item>(defaultFormModel);
@@ -359,6 +370,10 @@ const HeadRaw: Ref<HR<Item>> = ref([
   {
     key: 'p_score',
     title: '积分',
+  },
+  {
+    key: 'tags',
+    title: '标签',
   },
 ] satisfies HR<Item>);
 

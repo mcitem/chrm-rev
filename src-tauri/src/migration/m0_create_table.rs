@@ -41,6 +41,7 @@ impl MigrationTrait for Migration {
                     // .col(integer(Item::SoldEasy).default(0))
                     // .col(integer(Item::SoldNormal).default(0))
                     // .col(integer(Item::SoldHard).default(0))
+                    .col(string_null(Item::Tags))
                     .take(),
             )
             .await?;

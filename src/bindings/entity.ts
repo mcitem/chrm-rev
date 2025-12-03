@@ -32,7 +32,11 @@ p_hard: string,
 /**
  * 积分兑换 价格
  */
-p_score: string, };
+p_score: string, 
+/**
+ * 标签
+ */
+tags: string | null, };
 
 /**
  * Record Model

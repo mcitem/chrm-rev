@@ -47,29 +47,32 @@ pub struct Model {
     // pub sold_normal: i32,
     // // #[sea_orm(default_value = 0)]
     // pub sold_hard: i32,
+    /// 标签
+    pub tags: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 
-impl ActiveModelBehavior for ActiveModel {
-    fn new() -> Self {
-        use sea_orm::ActiveValue::NotSet;
-        Self {
-            id: NotSet,
-            name: NotSet,
-            spec: NotSet,
-            price: NotSet,
-            p_easy: NotSet,
-            p_hard: NotSet,
-            p_normal: NotSet,
-            p_score: NotSet,
-            // sold_easy: Set(0),
-            // sold_normal: Set(0),
-            // sold_hard: Set(0),
-        }
-    }
-}
+impl ActiveModelBehavior for ActiveModel {}
+//     fn new() -> Self {
+//         use sea_orm::ActiveValue::NotSet;
+//         Self {
+//             id: NotSet,
+//             name: NotSet,
+//             spec: NotSet,
+//             price: NotSet,
+//             p_easy: NotSet,
+//             p_hard: NotSet,
+//             p_normal: NotSet,
+//             p_score: NotSet,
+//             // sold_easy: Set(0),
+//             // sold_normal: Set(0),
+//             // sold_hard: Set(0),
+//             tags: NotSet,
+//         }
+//     }
+// }
 
 impl NextPrimaryKey for Entity {
     fn primary_column() -> Self::Column {

@@ -49,6 +49,7 @@ async fn on_delete(State(ref db): State<DbConn>, Path(id): Path<i32>) -> R {
     ok!(res.rows_affected)
 }
 
+/// 商品搜索接口
 async fn list(
     State(ref db): State<DbConn>,
     Query(OrderPagination {
@@ -76,22 +77,22 @@ async fn list(
         let mut cod = Condition::all();
 
         for qi in q {
+            let prefix_q = format!("{}%", qi);
             cod = cod.add(
                 item::Column::Name
                     .contains(qi)
                     .or(item::Column::Spec.contains(qi))
-                    .or(item::Column::Id.contains(qi)),
+                    .or(item::Column::Id.contains(qi))
+                    .or(item::Column::Tags.contains(qi)),
                 // .or(item::Column::Id.contains(qi.trim_prefix("#"))),
             );
-            let expr: SimpleExpr = Expr::case(
-                Expr::col(item::Column::Id)
-                    .like(format!("{}%", qi))
-                    .or(Expr::col(item::Column::Name).like(format!("{}%", qi))),
-                Expr::val(0),
-            )
-            .finally(Expr::val(1))
-            .into();
-            find = find.order_by_asc(expr);
+            let expr: SimpleExpr =
+                Expr::case(Expr::col(item::Column::Id).like(&prefix_q), Expr::val(2))
+                    .case(Expr::col(item::Column::Name).like(&prefix_q), Expr::val(1))
+                    .finally(Expr::val(0))
+                    .into();
+            // 降序
+            find = find.order_by_desc(expr);
         }
         find = find.filter(cod);
     }
