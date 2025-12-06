@@ -30,21 +30,9 @@
       </div>
       <!-- 左侧侧边栏底部空白区 -->
       <div class="flex flex-grow flex-col items-center justify-end pb-2">
-        <div><img src="/github.svg" width="80" /></div>
         <div class="flex items-center justify-center gap-2">
           <v-icon icon="mdi-github" size="small" class="inline-block" />
-          <span
-            class="inline-block transition-all hover:text-green-500/60 dark:hover:text-blue-200"
-            @click="
-              () => {
-                invoke('open_web_url', {
-                  url: 'https://github.com/mcitem/chrm-rev',
-                });
-              }
-            "
-          >
-            mcitem/chrm-rev
-          </span>
+          <span class="inline-block"> mcitem/chrm-rev </span>
         </div>
         <div>
           {{ SysTime?.time }}
@@ -70,7 +58,8 @@ import Sudo from '@/components/Sudo.vue';
 import TimeCheck from '@/components/TimeCheck.vue';
 import { DashBoardRoutes } from '@/lib/router';
 import { useSysTime } from '@/lib/service';
-import { invoke } from '@tauri-apps/api/core';
+
+// import { invoke } from '@tauri-apps/api/core';
 
 const router = useRouter();
 const route = useRoute();
