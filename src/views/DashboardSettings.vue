@@ -1,4 +1,5 @@
 <template>
+  <div>{{ version }}</div>
   <div class="flex justify-start gap-2 py-2">
     <v-btn-toggle
       v-tooltip="`切换主题模式`"
@@ -165,6 +166,7 @@ import { type AppContext } from '@/App.vue';
 import { useConfig } from '@/lib/service';
 import { instance } from '@/lib/service';
 import { sudo } from '@/lib/utils';
+import { version } from '@root/package.json';
 import { invoke } from '@tauri-apps/api/core';
 import { useColorMode } from '@vueuse/core';
 

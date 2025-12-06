@@ -27,6 +27,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - run: |
+          choco install jq -y
+
+          jq --arg sha "${{ github.sha }}" --arg job "${{ github.job }}" '.version = (.version + "-" + $job + "-" + $sha + "-" + ((now + 8*3600) | strftime("%Y-%m-%dT%H-%M-%S+08:00")))' .\package.json > .\package.json.temp
+          mv .\package.json.temp .\package.json -Force
+          cat .\package.json
+
+
           pnpm install
           pnpm tauri build
 
@@ -40,6 +47,7 @@ jobs:
         with:
           name: chrm-rev_fixed-webview2
           path: ./target/i686-win7-windows-msvc/release/bundle/nsis/*
+
   build_skip-webview2:
     runs-on: windows-latest
     steps:
@@ -63,10 +71,13 @@ jobs:
           # 修改 tauri.conf.json  设置 webviewInstallMode 为 skip
           choco install jq -y
           jq '.bundle.windows.webviewInstallMode = {"type": "skip"}' .\src-tauri\tauri.conf.json > .\src-tauri\temp.json
-          pnpm install shx -g
-          pnpm shx mv .\src-tauri\temp.json .\src-tauri\tauri.conf.json
+
+          mv .\src-tauri\temp.json .\src-tauri\tauri.conf.json -Force
           cat .\src-tauri\tauri.conf.json
 
+          jq --arg sha "${{ github.sha }}" --arg job "${{ github.job }}" '.version = (.version + "-" + $job + "-" + $sha + "-" + ((now + 8*3600) | strftime("%Y-%m-%dT%H-%M-%S+08:00")))' .\package.json > .\package.json.temp
+          mv .\package.json.temp .\package.json -Force
+          cat .\package.json
 
           pnpm install
           pnpm tauri build

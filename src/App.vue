@@ -1,6 +1,6 @@
 <template>
   <RouterView />
-  <VueQueryDevtools button-position="bottom-left" />
+  <!-- <VueQueryDevtools button-position="bottom-left" /> -->
   <Toaster :theme="state" expand />
 </template>
 
@@ -11,7 +11,7 @@ import {
   QueryObserverResult,
   RefetchOptions,
 } from '@tanstack/vue-query';
-import { VueQueryDevtools } from '@tanstack/vue-query-devtools';
+// import { VueQueryDevtools } from '@tanstack/vue-query-devtools';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useColorMode } from '@vueuse/core';
 import { Toaster } from 'vue-sonner';

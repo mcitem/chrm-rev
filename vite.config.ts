@@ -1,14 +1,11 @@
 import vue from '@vitejs/plugin-vue';
 import VueJsx from '@vitejs/plugin-vue-jsx';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath, URL } from 'node:url';
+import { resolve } from 'node:path';
 import AutoImport from 'unplugin-auto-import/vite';
 import ViteFonts from 'unplugin-fonts/vite';
 import { defineConfig } from 'vite';
 import vueDevTools from 'vite-plugin-vue-devtools';
 import vuetify from 'vite-plugin-vuetify';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -56,7 +53,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 4000,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
+        main: resolve('index.html'),
       },
       output: {
         manualChunks(id) {
@@ -67,7 +64,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@': resolve('./src'),
+      '@root': resolve('.'),
     },
   },
   clearScreen: false,
