@@ -11,6 +11,7 @@ pub enum SystemErrKind {
     OpenCsvFailed(std::io::Error),
     OpenGitRepoFailed(std::io::Error),
     OpenDataDirFailed(std::io::Error),
+    OpenLogsFailed(std::io::Error),
     UnsafeInvokeRejected,
     PutConfig(Box<dyn std::error::Error>),
     OpenDocs(tauri::Error, &'static str),
@@ -38,6 +39,7 @@ impl_app_error!(
         OpenCsvFailed(e); format!("打开 CSV 文件失败: {}", e),
         GetDataDir(e); format!("获取数据目录失败: {}", e),
         OpenDataDirFailed(e); format!("打开数据目录失败: {}", e),
+        OpenLogsFailed(e); format!("打开日志目录失败: {}", e),
         UnsafeInvokeRejected; "不安全的操作被拒绝",
         PutConfig(e); format!("保存配置失败: {}", e),
         OpenDocs(e, msg); format!("打开文档窗口失败[{}]: {}", msg, e),
@@ -177,7 +179,7 @@ impl_app_error!(
         Tauri(e); format!("Tauri 错误: {}", e),
         DbErr(e); format!("数据库错误: {}", e),
         XlsxErr(e); format!("Excel 处理错误: {}", e),
-        DataInConsistentWraning; None,
+        DataInConsistentWraning; format!("当前存在未导出的记录，无法继续操作"),
     ],
 );
 

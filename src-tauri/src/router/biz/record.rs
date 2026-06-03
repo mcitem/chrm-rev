@@ -60,6 +60,15 @@ struct ExportRequest {
     pub sign: String,
 }
 
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "mutation.ts")]
+struct ExportResponse {
+    #[serde(with = "rust_decimal::serde::str")]
+    #[ts(type = "string")]
+    total_discount_price: Decimal,
+    out: String,
+}
+
 async fn export_record(
     State(AppState { ref db, config }): State<AppState>,
     Json(ExportRequest { sign }): Json<ExportRequest>,
@@ -131,5 +140,8 @@ async fn export_record(
     let (bytes, _, _) = GBK.encode(&out);
     file.write_all(&bytes).await?;
 
-    ok!(())
+    ok!(ExportResponse {
+        total_discount_price,
+        out,
+    })
 }

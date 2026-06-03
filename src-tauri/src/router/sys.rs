@@ -31,6 +31,7 @@ pub fn router(s: ComplexState<impl Runtime>) -> Router {
         .route("/open_QuickReference", post(open_quick_reference))
         .route("/open_timedate_cpl", post(open_time_date_cpl))
         .route("/open_devtools", post(open_devtools))
+        .route("/open_logs", post(open_logs))
         .route("/config", put(put_config).get(get_config))
         .route("/validate/config", post(validate_config))
         .route("/bootloader/context", get(use_bootloader_context))
@@ -112,6 +113,15 @@ async fn open_devtools(State(ComplexState { app, .. }): State<ComplexState<impl 
         return ok!(());
     }
     Err(SystemErrKind::MainNotFound)
+}
+
+async fn open_logs(State(ComplexState { app, .. }): State<ComplexState<impl Runtime>>) -> R {
+    let data_dir = app
+        .path()
+        .app_log_dir()
+        .map_err(SystemErrKind::GetDataDir)?;
+    open::that(data_dir).map_err(SystemErrKind::OpenLogsFailed)?;
+    ok!(())
 }
 
 async fn open_time_date_cpl() -> R {

@@ -5,35 +5,75 @@
     "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
     "*.jsx": "${capture}.js",
     "*.tsx": "${capture}.ts",
-    "package.json": "pnpm-lock.yaml",
+    "package.json": "pnpm-lock.yaml, pnpm-workspace.yaml",
     "Cargo.toml": "Cargo.lock, rust-toolchain.toml",
     ".gitignore": ".gitattributes, .prettierignore",
     "vite.config.*": "postcss.config.* ,tailwind.config.*, .prettierrc, .eslintrc.*, eslint.config.*, tsconfig.json"
   },
-  "tailwindCSS.classFunctions": ["cn", "clsx"],
+  "tailwindCSS.classFunctions": [
+    "cn",
+    "clsx"
+  ],
   "prettier.enable": false,
   "editor.formatOnSave": true,
-
   // Auto fix
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
     "source.organizeImports": "never"
   },
-
   // Silent the stylistic rules in your IDE, but still auto fix them
   "eslint.rules.customizations": [
-    { "rule": "style/*", "severity": "off", "fixable": true },
-    { "rule": "format/*", "severity": "off", "fixable": true },
-    { "rule": "*-indent", "severity": "off", "fixable": true },
-    { "rule": "*-spacing", "severity": "off", "fixable": true },
-    { "rule": "*-spaces", "severity": "off", "fixable": true },
-    { "rule": "*-order", "severity": "off", "fixable": true },
-    { "rule": "*-dangle", "severity": "off", "fixable": true },
-    { "rule": "*-newline", "severity": "off", "fixable": true },
-    { "rule": "*quotes", "severity": "off", "fixable": true },
-    { "rule": "*semi", "severity": "off", "fixable": true }
+    {
+      "rule": "style/*",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "format/*",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*-indent",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*-spacing",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*-spaces",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*-order",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*-dangle",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*-newline",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*quotes",
+      "severity": "off",
+      "fixable": true
+    },
+    {
+      "rule": "*semi",
+      "severity": "off",
+      "fixable": true
+    }
   ],
-
   // Enable eslint for all supported languages
   "eslint.validate": [
     "javascript",
@@ -59,5 +99,7 @@
     "postcss",
     "tailwindcss"
   ],
-  "github-actions.workflows.pinned.workflows": [".github/workflows/build.yml"]
+  "github-actions.workflows.pinned.workflows": [
+    ".github/workflows/build.yml"
+  ]
 }

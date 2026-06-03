@@ -8,8 +8,8 @@ pub struct SqlitePath(pub PathBuf);
 
 impl Into<ConnectOptions> for SqlitePath {
     fn into(self) -> ConnectOptions {
-        let opt = ConnectOptions::new(format!("sqlite://{}?mode=rwc", self.0.display()));
-        // opt.sqlx_logging(false);
+        let mut opt = ConnectOptions::new(format!("sqlite://{}?mode=rwc", self.0.display()));
+        opt.sqlx_logging(false);
         // .connect_timeout(Duration::from_secs(5));
         opt
     }

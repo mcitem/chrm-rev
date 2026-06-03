@@ -18,6 +18,11 @@
     @ok="handleOk"
     @cancel="handleCancel"
   >
+    <div>
+      本班次金额（总折后价）：{{
+        useAllRecords.data.value?.summary.total_discount_price ?? '0.00'
+      }}
+    </div>
     <div class="py-4">
       <div class="pb-2">
         <a-checkable-tag
@@ -38,7 +43,7 @@
         <a-checkable-tag
           v-for="i in conf?.time_template"
           :key="i"
-          class="mb-1 ml-2 select-none px-2 py-1 text-[16px]"
+          class="mb-1 ml-2 select-none px-2 py-1.5 text-[16px]"
           :checked="checkedTime === i"
           @change="
             checkedValue => {
@@ -65,7 +70,9 @@
 import type { ExportRequest } from '@/bindings/mutation'
 import type { UnsafeInvokeVertify } from '@/bindings/sys'
 import { App } from 'antdv-next'
-import { useConfig, useSysTime } from '@/lib/service'
+import { useAllRecordsWithSummary, useConfig, useSysTime } from '@/lib/service'
+
+const useAllRecords = useAllRecordsWithSummary()
 
 const { message } = App.useApp()
 
@@ -109,6 +116,8 @@ const exportMutation = useMutation({
     await instance.post('/biz/record/export', {
       sign: sign.value,
     } satisfies ExportRequest)
+
+    // console.log('export response', response)
 
     await instance.post('/sys/unsafe/clear_record', {
       secret: window.UNSAFE_INVOKE_SECRET,

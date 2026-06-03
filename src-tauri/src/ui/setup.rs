@@ -54,8 +54,8 @@ where
 
     let cache_dir = path_resolver.app_cache_dir()?;
 
-    println!("data dir: {:?}", data_dir);
-    println!("cache dir: {:?}", cache_dir);
+    // println!("data dir: {:?}", data_dir);
+    // println!("cache dir: {:?}", cache_dir);
 
     app_handle.plugin(tauri_plugin_pinia::Builder::new().path(cache_dir).build())?;
 
@@ -80,7 +80,7 @@ where
             let db = Database::connect(opt).await?;
             let pending = crate::Migrator::get_pending_migrations(&db).await?;
 
-            println!("pending migration: {}", pending.len());
+            // println!("pending migration: {}", pending.len());
 
             if pending.is_empty() {
                 Ok::<(DatabaseConnection, bool), DbErr>((db, true))
@@ -101,7 +101,7 @@ where
         conf_ready,
         db_ready,
     };
-    println!("bootloader context: {:?}", inner);
+    // println!("bootloader context: {:?}", inner);
 
     app.manage(BootloaderContex::new(inner));
 

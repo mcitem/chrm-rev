@@ -110,6 +110,11 @@ const menuPropsConst: MenuProps = {
           label: 'DevTools',
           icon: ChromeOutlined,
         },
+        {
+          key: 'Logs',
+          label: '日志目录',
+          icon: FolderOpenOutlined,
+        },
       ],
     },
     {
@@ -207,6 +212,9 @@ const menuPropsConst: MenuProps = {
     }
     else if (e.key === 'DevTools') {
       instance.post('/sys/open_devtools', {})
+    }
+    else if (e.key === 'Logs') {
+      instance.post('/sys/open_logs', {})
     }
     else if (e.key === 'Github') {
       instance.post('/sys/open_git_repo', {})

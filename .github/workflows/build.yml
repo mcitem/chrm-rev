@@ -25,6 +25,7 @@ jobs:
 
   i686-win7-windows-msvc_fixed-webview2:
     runs-on: windows-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v6
         with:
@@ -67,6 +68,7 @@ jobs:
 
   i686-win7-windows-msvc_skip-webview2:
     runs-on: windows-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -110,6 +112,7 @@ jobs:
 
   stable_x86_64-pc-windows-msvc_skip-webview2:
     runs-on: windows-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -144,3 +147,30 @@ jobs:
         with:
           name: chrm-rev_skip-webview2_x64
           path: ./target/x86_64-pc-windows-msvc/release/bundle/nsis/*
+
+  rename:
+    runs-on: ubuntu-latest
+    needs: [i686-win7-windows-msvc_fixed-webview2, i686-win7-windows-msvc_skip-webview2, stable_x86_64-pc-windows-msvc_skip-webview2]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+      - run: |
+          set -euo pipefail
+
+          VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
+
+          ls -R
+          mkdir -p dist
+          mv "chrm-rev_fixed-webview2/chrm-rev_${VERSION}_x86-setup.exe" "dist/chrm-rev_${VERSION}_i686-win7-windows-msvc_fixed-webview2_setup.exe"
+          mv "chrm-rev_skip-webview2/chrm-rev_${VERSION}_x86-setup.exe" "dist/chrm-rev_${VERSION}_i686-win7-windows-msvc_skip-webview2_setup.exe"
+          mv "chrm-rev_skip-webview2_x64/chrm-rev_${VERSION}_x64-setup.exe" "dist/chrm-rev_${VERSION}_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
+
+          for file in dist/*.exe; do
+            sha256sum "$file" | awk '{print $1 "  " $2}' > "${file}.sha256"
+          done
+
+          ls -R dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: chrm-rev
+          path: ./dist/*

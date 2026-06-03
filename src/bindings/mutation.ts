@@ -2,6 +2,8 @@
 
 export type ExportRequest = { sign: string, };
 
+export type ExportResponse = { total_discount_price: string, out: string, };
+
 export type OperationRecord = { item_id: number, stu_id: number, };
 
 export type SetItemRequest = { quantity: number, };

@@ -63,4 +63,4 @@ export type LoadWorksheetData = { path: string, sheet: string, };
 
 export type TryLoadedItemModel = { id: string | null, name: string | null, spec: string | null, p: string | null, p_hard: string | null, p_easy: string | null, p_normal: string | null, p_score: string | null, };
 
-export type TryLoadedStuModel = { id: string | null, name: string | null, no: string | null, d_level: string | null, second_school: string | null, class: string | null, sex: string | null, credit: string | null, };
+export type TryLoadedStuModel = { id: string | null, name: string | null, no: string | null, d_level: string | null, second_school: string | null, class: string | null, sex: string | null, credit: string | null, major: string | null, };

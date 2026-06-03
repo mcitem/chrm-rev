@@ -1,9 +1,13 @@
+import process from 'node:process'
 import { defineConfig } from 'vitepress'
+
+const base = process.env.DOCS_BASE || '/docs/'
+console.log(`docs base: ${base}`)
 
 export default defineConfig({
   title: 'chrm rev',
   description: 'chrm rev docs',
-  base: '/docs/',
+  base,
   outDir: '../dist/docs',
   themeConfig: {
     sidebar: [
@@ -37,4 +41,11 @@ export default defineConfig({
       copyright: 'Copyright © 2019-present Evan You',
     },
   },
+  sitemap: {
+    hostname: 'https://chrm-rev.mcitem.net',
+  },
+  head: [
+    ['meta', { name: 'baidu-site-verification', content: 'codeva-T06X5lyw0q' }],
+    ['meta', { name: '360-site-verification', content: '4738aa5736873967a39c21cdfb6b67c0' }],
+  ],
 })
