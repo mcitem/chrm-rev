@@ -32,49 +32,85 @@
       <td colspan="2">不带运行时</td>
     </tr>
     <tr>
-      <td colspan="2">Github</td>
+      <td rowspan="2">v1.1.1</td>
+      <td>Github</td>
       <td>
         <a
-          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_i686-win7-windows-msvc_fixed-webview2_setup.exe"
-        >
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.1/chrm-rev_1.1.1_i686-win7-windows-msvc_fixed-webview2_setup.exe">
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_i686-win7-windows-msvc_skip-webview2_setup.exe"
-        >
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.1/chrm-rev_1.1.1_i686-win7-windows-msvc_skip-webview2_setup.exe">
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
-        >
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.1/chrm-rev_1.1.1_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe">
           下载
         </a>
       </td>
     </tr>
     <tr>
-      <td colspan="2">国内镜像</td>
+      <td>国内镜像</td>
       <td>
         <a
-          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_i686-win7-windows-msvc_fixed-webview2_setup.exe"
-        >
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.1_i686-win7-windows-msvc_fixed-webview2_setup.exe">
+          下载
+        </a>
+      </td>
+      <td>
+        <a href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.1_i686-win7-windows-msvc_skip-webview2_setup.exe">
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_i686-win7-windows-msvc_skip-webview2_setup.exe"
-        >
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.1_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe">
+          下载
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td rowspan="2">v1.1.0</td>
+      <td>Github</td>
+      <td>
+        <a
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_i686-win7-windows-msvc_fixed-webview2_setup.exe">
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
-        >
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_i686-win7-windows-msvc_skip-webview2_setup.exe">
+          下载
+        </a>
+      </td>
+      <td>
+        <a
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe">
+          下载
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td>国内镜像</td>
+      <td>
+        <a
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_i686-win7-windows-msvc_fixed-webview2_setup.exe">
+          下载
+        </a>
+      </td>
+      <td>
+        <a href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_i686-win7-windows-msvc_skip-webview2_setup.exe">
+          下载
+        </a>
+      </td>
+      <td>
+        <a
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe">
           下载
         </a>
       </td>
