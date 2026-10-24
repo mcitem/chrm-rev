@@ -12,8 +12,8 @@
       {{ status === 'error' ? error_text : '正在进行中，请勿关闭窗口' }}
     </div>
     <div v-if="status === 'error' && next_pk_" class="text-xs text-gray-200">
-      当前数据库已有 {{ next_pk_?.item }} 条商品数据，
-      {{ next_pk_?.stu }} 条学生数据
+      当前数据库已有 {{ next_pk_?.item_count }} 条商品数据，
+      {{ next_pk_?.stu_count }} 条学生数据
     </div>
     <div>
       <a-button
@@ -44,8 +44,10 @@ import type { GetNextPk } from '@/bindings/dataloader'
 import type { UnsafeInvokeVertify } from '@/bindings/sys'
 import { App } from 'antdv-next'
 import { cn } from '@/lib'
+import { useStore } from '@/lib/stores'
 
 const { message } = App.useApp()
+const queryClient = useQueryClient()
 
 const { status, step, nextStepMutation, error_code, error_text }
   = inject<DataloaderContext>('dataloader')!
@@ -55,17 +57,23 @@ onMounted(async () => {
   const res = (await instance.get('/sys/dataloader/next_pk')) as GetNextPk
   next_pk_.value = res
 
-  if (res.item >= 2 && res.stu === 1) {
+  if (res.item_count > 0 && res.stu_count === 0) {
     step.value = 3
   }
 })
 
 const backupAndClearMutation = useMutation({
   mutationFn: async () => {
-    const res = await instance.post<string, string>('/sys/backup/create')
+    const res = await instance.post<string, string>(
+      '/sys/backup/create',
+      {},
+      { timeout: 0 },
+    )
     await instance.post('/sys/unsafe/clear_db_file', {
       secret: window.UNSAFE_INVOKE_SECRET,
     } satisfies UnsafeInvokeVertify)
+    useStore().clearTabs()
+    queryClient.removeQueries({ queryKey: ['biz'] })
     return res
   },
   onSuccess: (path) => {

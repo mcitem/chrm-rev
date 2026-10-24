@@ -11,6 +11,25 @@ use std::fs::File;
 use std::str::FromStr;
 use std::{io::BufReader, path::PathBuf};
 
+pub fn located(error: DataloaderErrKind, start: Option<(u32, u32)>) -> DataloaderErrKind {
+    let (row, col) = start.unwrap_or_default();
+    match error {
+        DataloaderErrKind::FieldNotFound(s, x, y) => {
+            DataloaderErrKind::FieldNotFound(s, x + col as usize, y + row as usize)
+        }
+        DataloaderErrKind::Decimal(s, x, y, e) => {
+            DataloaderErrKind::Decimal(s, x + col as usize, y + row as usize, e)
+        }
+        DataloaderErrKind::Integer(x, y, v) => {
+            DataloaderErrKind::Integer(x + col as usize, y + row as usize, v)
+        }
+        DataloaderErrKind::Difficulty(x, y, v) => {
+            DataloaderErrKind::Difficulty(x + col as usize, y + row as usize, v)
+        }
+        other => other,
+    }
+}
+
 pub fn check_path(path: String) -> Result<PathBuf, DataloaderErrKind> {
     let path = PathBuf::from(path);
     if !(path.is_absolute()
@@ -114,14 +133,17 @@ pub fn decimal_with_default(
     row: &[calamine::Data],
     index: Option<usize>,
     default: Decimal,
-) -> ActiveValue<Decimal> {
-    Set(index
-        .and_then(|i| {
-            row.get(i)
-                .map(ToString::to_string)
-                .and_then(|ref s| Decimal::from_str(s).ok())
-        })
-        .unwrap_or(default))
+    y: usize,
+    header: usize,
+) -> Result<ActiveValue<Decimal>, DataloaderErrKind> {
+    let Some(index) = index else {
+        return Ok(Set(default));
+    };
+    let value = row.get(index).map(ToString::to_string).unwrap_or_default();
+    if value.trim().is_empty() {
+        return Ok(Set(default));
+    }
+    decimal(row, index, y, header, "学生余额")
 }
 
 fn difficulty(
@@ -131,27 +153,43 @@ fn difficulty(
     data_include_header: usize,
     identifier: &'static str,
 ) -> Result<Difficulty, DataloaderErrKind> {
-    Ok(Difficulty::from(
-        row.get(index)
-            .map(ToString::to_string)
-            .ok_or(DataloaderErrKind::FieldNotFound(
-                identifier,
-                index + 1,
-                y + data_include_header + 1,
-            ))?,
-    ))
+    let value = row
+        .get(index)
+        .map(ToString::to_string)
+        .ok_or(DataloaderErrKind::FieldNotFound(
+            identifier,
+            index + 1,
+            y + data_include_header + 1,
+        ))?;
+    match value.as_str() {
+        "不困难" => Ok(Difficulty::Peaceful),
+        "一般困难" => Ok(Difficulty::Easy),
+        "困难" => Ok(Difficulty::Normal),
+        "特别困难" => Ok(Difficulty::Hard),
+        _ => Err(DataloaderErrKind::Difficulty(
+            index + 1,
+            y + data_include_header + 1,
+            value,
+        )),
+    }
 }
 
 pub fn int(
     row: &[calamine::Data],
     index: Option<usize>,
     default: i32,
+    y: usize,
+    header: usize,
 ) -> Result<ActiveValue<i32>, DataloaderErrKind> {
-    Ok(Set(index
-        .and_then(|i| row.get(i))
-        .map(ToString::to_string)
-        .and_then(|s| s.parse::<i32>().ok())
-        .unwrap_or(default)))
+    let Some(index) = index else {
+        return Ok(Set(default));
+    };
+    let value = row.get(index).map(ToString::to_string).unwrap_or_default();
+    value
+        .trim()
+        .parse::<i32>()
+        .map(Set)
+        .map_err(|_| DataloaderErrKind::Integer(index + 1, y + header + 1, value))
 }
 
 pub fn s_build_active_model(
@@ -160,13 +198,18 @@ pub fn s_build_active_model(
     data_include_header: usize,
     ctx: &LoadStuContext,
     default_balance: DefaultBalance,
+    first_id: i32,
 ) -> Result<student::ActiveModel, DataloaderErrKind> {
-    let y32 = i32::try_from(y + 1).map_err(DataloaderErrKind::LoadTryFromInt)?;
+    let y32 = first_id
+        .checked_add(i32::try_from(y).map_err(DataloaderErrKind::LoadTryFromInt)?)
+        .ok_or_else(|| {
+            DataloaderErrKind::LoadDataDb(sea_orm::DbErr::Custom("自动生成的 ID 超出范围".into()))
+        })?;
 
     let difficulty_level = difficulty(row, ctx.s_d_level, y, data_include_header, "学生困难等级")?;
 
     Ok(student::ActiveModel {
-        id: int(row, ctx.id, y32)?,
+        id: int(row, ctx.id, y32, y, data_include_header)?,
         name: string(row, ctx.s_name, y, data_include_header, "学生姓名")?,
         student_no: string(row, ctx.s_no, y, data_include_header, "学生学号")?,
         difficulty_level: Set(difficulty_level),
@@ -183,7 +226,9 @@ pub fn s_build_active_model(
             row,
             ctx.s_credit,
             difficulty_level.as_balance(&default_balance),
-        ),
+            y,
+            data_include_header,
+        )?,
         major: string_null(row, ctx.s_major, y, data_include_header, "学生专业")?,
     })
 }
@@ -193,11 +238,16 @@ pub fn i_build_active_model(
     row: &[calamine::Data],
     data_include_header: usize,
     ctx: &LoadItemContext,
+    first_id: i32,
 ) -> Result<item::ActiveModel, DataloaderErrKind> {
-    let y32 = i32::try_from(y + 1).map_err(DataloaderErrKind::LoadTryFromInt)?;
+    let y32 = first_id
+        .checked_add(i32::try_from(y).map_err(DataloaderErrKind::LoadTryFromInt)?)
+        .ok_or_else(|| {
+            DataloaderErrKind::LoadDataDb(sea_orm::DbErr::Custom("自动生成的 ID 超出范围".into()))
+        })?;
 
     Ok(item::ActiveModel {
-        id: int(row, ctx.id, y32)?,
+        id: int(row, ctx.id, y32, y, data_include_header)?,
         name: string(row, ctx.i_name, y, data_include_header, "商品名称")?,
         spec: string(row, ctx.i_spec, y, data_include_header, "商品规格")?,
         price: decimal(row, ctx.i_p, y, data_include_header, "商品原价")?,

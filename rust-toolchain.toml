@@ -1,7 +1,4 @@
 [toolchain]
-channel = "nightly-2026-06-03"
-components = [
-  "rust-src",
-  "rust-std"
-]
-targets = [ "i686-pc-windows-msvc" ]
+channel = "nightly-2026-10-24"
+components = ["rust-src", "rust-std"]
+targets = ["i686-pc-windows-msvc"]

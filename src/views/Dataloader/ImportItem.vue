@@ -39,6 +39,25 @@
         <span> {{ checkImport.data.value?.total || 0 }}</span>
         条数据，确认无误后请点击完成导入
       </div>
+      <div v-if="checkImport.data.value?.warnings.length" class="mt-3">
+        <div class="font-semibold text-amber-700">
+          以下价格为零或负值，请核对：
+        </div>
+        <div class="max-h-32 overflow-auto text-sm">
+          <div
+            v-for="warning in checkImport.data.value.warnings"
+            :key="`${warning.row}-${warning.column}`"
+          >
+            第 {{ warning.row }} 行，第 {{ warning.column }} 列：{{
+              warning.field
+            }}
+            = {{ warning.value }}
+          </div>
+        </div>
+        <a-checkbox v-model:checked="allowNonPositive">
+          已核对，跳过这些价格提示并继续导入
+        </a-checkbox>
+      </div>
     </div>
   </div>
 
@@ -46,6 +65,7 @@
     <help-button class="mr-2" />
     <a-button
       class="mr-2"
+      :disabled="importItem.isPending.value"
       @click="
         () => {
           step = 3
@@ -162,7 +182,11 @@ const OPTIONS = [
   },
 ]
 
+const allowNonPositive = ref(false)
 const importStep = ref(0)
+watch(importStep, () => {
+  allowNonPositive.value = false
+})
 const path = ref('')
 const selectedSheet = ref('')
 const dataIncludeHeader = ref(true)
@@ -184,12 +208,38 @@ const checkImport = useMutation({
       sheet: selectedSheet.value,
       data_include_header: dataIncludeHeader.value,
       ctx: loadContext.value as LoadItemContext,
+      allow_non_positive: allowNonPositive.value,
     } satisfies CheckItemImport)) as CheckItemImportReturn
     return res
   },
 })
 
+const importItem = useMutation({
+  mutationFn: async () => {
+    const res = (await instance.post(
+      '/sys/dataloader/load/item',
+      {
+        path: path.value,
+        sheet: selectedSheet.value,
+        data_include_header: dataIncludeHeader.value,
+        ctx: loadContext.value as LoadItemContext,
+        allow_non_positive: allowNonPositive.value,
+      } satisfies CheckItemImport,
+      {
+        timeout: 0,
+      },
+    )) as number
+    return res
+  },
+  onSuccess: (res) => {
+    message.success(`成功导入 ${res} 条数据`)
+    step.value = 3
+  },
+})
+
 const nextStepDisabled = computed(() => {
+  if (importItem.isPending.value)
+    return true
   if (importStep.value === 0) {
     return !selectedSheet.value
   }
@@ -199,28 +249,14 @@ const nextStepDisabled = computed(() => {
     })
   }
   else if (importStep.value === 2) {
-    return !checkImport.isSuccess.value
+    return (
+      !checkImport.isSuccess.value
+      || (!!checkImport.data.value?.warnings.length && !allowNonPositive.value)
+    )
   }
   else {
     return false
   }
-})
-
-const importItem = useMutation({
-  mutationFn: async () => {
-    const res = (await instance.post('/sys/dataloader/load/item', {
-      path: path.value,
-      sheet: selectedSheet.value,
-      data_include_header: dataIncludeHeader.value,
-      ctx: loadContext.value as LoadItemContext,
-    } satisfies CheckItemImport)) as number
-    // console.log(res);
-    return res
-  },
-  onSuccess: (res) => {
-    message.success(`成功导入 ${res} 条数据`)
-    step.value = 3
-  },
 })
 
 provide<ImportContext>(IMPORT_CONTEXT_KEY, {

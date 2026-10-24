@@ -37,6 +37,7 @@ async fn delete_item(
     State(AppState { ref db, config }): State<AppState>,
     Path(OperationRecord { stu_id, item_id }): Path<OperationRecord>,
 ) -> R {
+    let _operation = config.operation().await;
     let ctx = db.begin().await?;
 
     let conf = config.balance_config().await;
@@ -82,6 +83,7 @@ async fn set_item(
     Path(OperationRecord { stu_id, item_id }): Path<OperationRecord>,
     Json(SetItemRequest { quantity }): Json<SetItemRequest>,
 ) -> R {
+    let _operation = config.operation().await;
     let quantity = Ord::max(quantity, 1);
 
     let conf = config.balance_config().await;

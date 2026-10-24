@@ -31,7 +31,7 @@
           class="select-none px-2 py-1 text-[16px]"
           :checked="checkedUsers[i]"
           @change="
-            checkedValue => {
+            (checkedValue: boolean) => {
               checkedUsers[i] = checkedValue
             }
           "
@@ -46,7 +46,7 @@
           class="mb-1 ml-2 select-none px-2 py-1.5 text-[16px]"
           :checked="checkedTime === i"
           @change="
-            checkedValue => {
+            (checkedValue: boolean) => {
               if (checkedValue) {
                 checkedTime = i
               }
@@ -68,7 +68,6 @@
 
 <script setup lang="ts">
 import type { ExportRequest } from '@/bindings/mutation'
-import type { UnsafeInvokeVertify } from '@/bindings/sys'
 import { App } from 'antdv-next'
 import { useAllRecordsWithSummary, useConfig, useSysTime } from '@/lib/service'
 
@@ -113,15 +112,13 @@ const exportMutation = useMutation({
   mutationFn: async () => {
     confirmLoading.value = true
 
-    await instance.post('/biz/record/export', {
-      sign: sign.value,
-    } satisfies ExportRequest)
-
-    // console.log('export response', response)
-
-    await instance.post('/sys/unsafe/clear_record', {
-      secret: window.UNSAFE_INVOKE_SECRET,
-    } satisfies UnsafeInvokeVertify)
+    await instance.post(
+      '/biz/record/export',
+      {
+        sign: sign.value,
+      } satisfies ExportRequest,
+      { timeout: 0 },
+    )
   },
   onSuccess() {
     setTimeout(() => {

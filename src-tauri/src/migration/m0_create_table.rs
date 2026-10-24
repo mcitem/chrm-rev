@@ -73,10 +73,30 @@ impl MigrationTrait for Migration {
                     .take(),
             )
             .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_record_student_item")
+                    .table(Record::Table)
+                    .if_not_exists()
+                    .col(Record::StudentId)
+                    .col(Record::ItemId)
+                    .take(),
+            )
+            .await?;
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_index(
+                Index::drop()
+                    .name("idx_record_student_item")
+                    .table(Record::Table)
+                    .if_exists()
+                    .to_owned(),
+            )
+            .await?;
         manager
             .drop_table(Table::drop().table(Record::Table).if_exists().take())
             .await?;

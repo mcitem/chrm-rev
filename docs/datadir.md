@@ -16,18 +16,22 @@ C:\Users\<用户名>\AppData\Roaming\com.mcitem.chrm-rev
 
 AppData 是隐藏的文件夹，需要在文件资源管理器中启用显示隐藏的项目
 
-AppData\com.mcitem.chrm-rev 存放 Chrm Rev 的配置文件`chrm-rev.config.json`和数据库文件`chrm-rev.sqlite.db`
+AppData\com.mcitem.chrm-rev 存放 Chrm Rev 的数据库文件 `chrm-rev.sqlite.db`。系统配置和业务数据统一保存在此数据库中
 
-## chrm-rev.config.json
+## 系统配置
 
-`chrm-rev.config.json`是Chrm Rev的配置文件（json格式），此文件只会在启动时被读取，启动后不会监听文件变化，如需编辑请使用内置的编辑工具或先关闭软件
+配置保存在数据库的 `app_config` 表中，可通过内置的配置管理界面修改。
+
+数据库中尚无配置时，通过内置配置管理界面设置并保存。
 
 [配置参考](./configloader.md)
 
 ## chrm-rev.sqlite.db
 
-`chrm-rev.sqlite.db`是Chrm Rev的数据库文件（sqlite），存放商品、学生、未导出的记录
+`chrm-rev.sqlite.db`是Chrm Rev的数据库文件（sqlite），存放系统配置、商品、学生、未导出的记录
 
 软件启动时，此文件会被占用，无法被删除。
 
 使用 [datagrip](./datagrip.md) 可以直接编辑数据库
+
+备份和恢复仅处理数据库文件，系统配置随数据库一并保存和恢复。

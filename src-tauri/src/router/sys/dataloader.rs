@@ -6,12 +6,14 @@ use crate::{
     utils::{NextPrimaryKey, SqlitePath},
 };
 use calamine::Reader;
-use sea_orm::{ConnectOptions, Database, DatabaseConnection, Insert, TransactionTrait};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait;
 use tauri_plugin_axum::AxumExt;
 use ts_rs::TS;
 
+mod batch;
 pub mod common;
+use batch::insert_in_batches;
 
 pub fn router<RT: Runtime>() -> Router<ComplexState<RT>> {
     Router::new()
@@ -28,42 +30,13 @@ pub fn router<RT: Runtime>() -> Router<ComplexState<RT>> {
         .route("/next_pk", get(get_next_px))
 }
 
-async fn set_db_ready(State(ComplexState { app, .. }): State<ComplexState<impl Runtime>>) -> R {
+async fn set_db_ready(State(ComplexState { app, db }): State<ComplexState<impl Runtime>>) -> R {
     let conf = app.state::<Config>().clone_();
-
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(DataloaderErrKind::GetDataDir)?;
-
-    let db_path = data_dir.join(DB_FILE_NAME);
-
-    let db_path: ConnectOptions = SqlitePath(db_path).into();
-
-    let db_path = Database::connect(db_path)
-        .await
-        .map_err(DataloaderErrKind::DbConnect)?;
-
-    db_path.ping().await.map_err(DataloaderErrKind::DbConnect)?;
-
-    let pending = crate::Migrator::get_pending_migrations(&db_path)
+    let _operation = conf.operation().await;
+    crate::utils::set_data_ready(&db, true)
         .await
         .map_err(DataloaderErrKind::DbMigrate)?;
-
-    if !pending.is_empty() {
-        crate::Migrator::up(&db_path, None)
-            .await
-            .map_err(DataloaderErrKind::DbMigrate)?;
-    }
-
-    app.set_router(crate::router::app(conf, db_path, app.clone()))
-        .await;
-
-    {
-        let ctx = app.state::<BootloaderContex>();
-        ctx.write().await.db_ready = true;
-    }
-
+    app.state::<BootloaderContex>().write().await.db_ready = true;
     ok!(())
 }
 
@@ -76,42 +49,43 @@ async fn load_stu(
         data_include_header,
     }): Json<CheckStuImport>,
 ) -> R {
-    let sheet = use_range_data(path, sheet)?;
+    let conf = app.state::<Config>().clone_();
+    let _operation = conf.operation().await;
+    let sheet = blocking(move || use_range_data(path, sheet)).await?;
 
     let data_include_header = data_include_header as usize;
+    let first_id = if ctx.id.is_none() {
+        student::Entity::next_pk(&db)
+            .await
+            .map_err(DataloaderErrKind::LoadDataDb)?
+    } else {
+        1
+    };
 
     let default_balance = app.state::<Config>().balance_config().await.default_balance;
 
-    let items = sheet
-        .rows()
-        .skip(data_include_header)
-        .enumerate()
-        .map(|(y, row)| {
-            Ok(s_build_active_model(
-                y,
-                row,
-                data_include_header,
-                &ctx,
-                default_balance,
-            )?)
-        })
-        .collect::<Result<Vec<_>, AppErr>>()?;
+    let items = blocking(move || {
+        sheet
+            .rows()
+            .skip(data_include_header)
+            .enumerate()
+            .map(|(y, row)| {
+                s_build_active_model(y, row, data_include_header, &ctx, default_balance, first_id)
+                    .map_err(|error| located(error, sheet.start()))
+            })
+            .collect::<Result<Vec<_>, DataloaderErrKind>>()
+    })
+    .await?;
 
-    let len = items.len();
-
-    let txn = db.begin().await.map_err(DataloaderErrKind::LoadDataDb)?;
-
-    Insert::many(items)
-        .exec(&txn)
+    let len = insert_in_batches(&db, items)
         .await
         .map_err(DataloaderErrKind::LoadDataDb)?;
-
-    txn.commit().await.map_err(DataloaderErrKind::LoadDataDb)?;
 
     ok!(len)
 }
 
 async fn load_stu_check(
+    State(ComplexState { app, db }): State<ComplexState<impl Runtime>>,
     Json(CheckStuImport {
         path,
         sheet,
@@ -119,18 +93,38 @@ async fn load_stu_check(
         data_include_header,
     }): Json<CheckStuImport>,
 ) -> R {
-    let sheet = use_range_data(path, sheet)?;
+    let sheet = blocking(move || use_range_data(path, sheet)).await?;
 
     let data_include_header = data_include_header as usize;
+    let first_id = if ctx.id.is_none() {
+        student::Entity::next_pk(&db)
+            .await
+            .map_err(DataloaderErrKind::LoadDataDb)?
+    } else {
+        1
+    };
 
-    let total = sheet.rows().len() - data_include_header;
+    let total = sheet.rows().len().saturating_sub(data_include_header);
 
     let first_data = sheet
         .rows()
         .skip(data_include_header)
         .next()
-        .ok_or(DataloaderErrKind::DataNotFound(String::from("第一行商品")))?;
+        .ok_or(DataloaderErrKind::DataNotFound(String::from("第一行学生")))?;
 
+    let default_balance = app.state::<Config>().default_balance().await;
+    let validation_sheet = sheet.clone();
+    let validation_ctx = ctx.clone();
+    let difficulty_counts = blocking(move || {
+        student_import_counts(
+            &validation_sheet,
+            data_include_header,
+            &validation_ctx,
+            default_balance,
+            first_id,
+        )
+    })
+    .await?;
     let first_item = TryLoadedStuModel {
         id: ctx
             .id
@@ -158,7 +152,8 @@ async fn load_stu_check(
     ok!(CheckStuImportReturn {
         first_item,
         ctx,
-        total
+        total,
+        difficulty_counts,
     })
 }
 
@@ -167,6 +162,10 @@ async fn load_stu_check(
 pub struct GetNextPk {
     item: i32,
     stu: i32,
+    #[ts(type = "number")]
+    item_count: u64,
+    #[ts(type = "number")]
+    stu_count: u64,
 }
 
 impl GetNextPk {
@@ -179,7 +178,21 @@ impl GetNextPk {
             .await
             .map_err(|e| DataloaderErrKind::CheckDb(e, "student"))?;
 
-        Ok(GetNextPk { item, stu })
+        use sea_orm::PaginatorTrait;
+        let item_count = item::Entity::find()
+            .count(db)
+            .await
+            .map_err(|e| DataloaderErrKind::CheckDb(e, "item"))?;
+        let stu_count = student::Entity::find()
+            .count(db)
+            .await
+            .map_err(|e| DataloaderErrKind::CheckDb(e, "student"))?;
+        Ok(GetNextPk {
+            item,
+            stu,
+            item_count,
+            stu_count,
+        })
     }
 }
 
@@ -188,41 +201,61 @@ async fn get_next_px(State(ComplexState { ref db, .. }): State<ComplexState<impl
 }
 
 async fn load_item(
-    State(ComplexState { db, .. }): State<ComplexState<impl Runtime>>,
+    State(ComplexState { db, app }): State<ComplexState<impl Runtime>>,
     Json(CheckItemImport {
         path,
         sheet,
         ctx,
         data_include_header,
+        allow_non_positive,
     }): Json<CheckItemImport>,
 ) -> R {
-    let sheet = use_range_data(path, sheet)?;
+    let conf = app.state::<Config>().clone_();
+    let _operation = conf.operation().await;
+    let sheet = blocking(move || use_range_data(path, sheet)).await?;
 
     let data_include_header = data_include_header as usize;
+    let first_id = if ctx.id.is_none() {
+        item::Entity::next_pk(&db)
+            .await
+            .map_err(DataloaderErrKind::LoadDataDb)?
+    } else {
+        1
+    };
 
-    let items = sheet
-        .rows()
-        .skip(data_include_header)
-        .enumerate()
-        .map(|(y, row)| Ok(i_build_active_model(y, row, data_include_header, &ctx)?))
-        .collect::<Result<Vec<_>, AppErr>>()?;
+    let items = blocking(move || {
+        let items = sheet
+            .rows()
+            .skip(data_include_header)
+            .enumerate()
+            .map(|(y, row)| {
+                i_build_active_model(y, row, data_include_header, &ctx, first_id)
+                    .map_err(|error| located(error, sheet.start()))
+            })
+            .collect::<Result<Vec<_>, DataloaderErrKind>>()?;
+        let warnings = item_warnings(&sheet, &ctx, data_include_header);
+        if !allow_non_positive && !warnings.is_empty() {
+            return Err(DataloaderErrKind::NonPositive(
+                warnings
+                    .iter()
+                    .map(|w| format!("第{}行第{}列 {}={}", w.row, w.column, w.field, w.value))
+                    .collect::<Vec<_>>()
+                    .join("；"),
+            ));
+        }
+        Ok(items)
+    })
+    .await?;
 
-    let len = items.len();
-
-    let txn = db.begin().await.map_err(DataloaderErrKind::LoadDataDb)?;
-
-    Insert::many(items)
-        .exec(&txn)
+    let len = insert_in_batches(&db, items)
         .await
         .map_err(DataloaderErrKind::LoadDataDb)?;
-
-    txn.commit().await.map_err(DataloaderErrKind::LoadDataDb)?;
 
     ok!(len)
 }
 
 /// 索引从0开始
-#[derive(Debug, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "./dataloader.ts")]
 pub struct LoadItemContext {
     id: Option<usize>,
@@ -242,7 +275,7 @@ pub struct LoadItemContext {
     i_p_score: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "./dataloader.ts")]
 pub struct LoadStuContext {
     id: Option<usize>,
@@ -294,6 +327,8 @@ struct TryLoadedStuModel {
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "./dataloader.ts")]
 struct CheckItemImport {
+    #[serde(default)]
+    allow_non_positive: bool,
     path: String,
     sheet: String,
     data_include_header: bool,
@@ -312,6 +347,7 @@ struct CheckStuImport {
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "./dataloader.ts")]
 struct CheckItemImportReturn {
+    warnings: Vec<ImportWarning>,
     first_item: TryLoadedItemModel,
     total: usize,
     ctx: LoadItemContext,
@@ -323,29 +359,94 @@ struct CheckStuImportReturn {
     first_item: TryLoadedStuModel,
     total: usize,
     ctx: LoadStuContext,
+    difficulty_counts: StudentDifficultyCounts,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "./dataloader.ts")]
+struct StudentDifficultyCounts {
+    peaceful: usize,
+    easy: usize,
+    normal: usize,
+    hard: usize,
+}
+
+impl StudentDifficultyCounts {
+    fn add(&mut self, difficulty: student::Difficulty) {
+        match difficulty {
+            student::Difficulty::Peaceful => self.peaceful += 1,
+            student::Difficulty::Easy => self.easy += 1,
+            student::Difficulty::Normal => self.normal += 1,
+            student::Difficulty::Hard => self.hard += 1,
+        }
+    }
+}
+
+fn student_import_counts(
+    sheet: &calamine::Range<calamine::Data>,
+    header: usize,
+    ctx: &LoadStuContext,
+    default_balance: crate::config::DefaultBalance,
+    first_id: i32,
+) -> Result<StudentDifficultyCounts, DataloaderErrKind> {
+    let mut counts = StudentDifficultyCounts::default();
+    for (y, row) in sheet.rows().skip(header).enumerate() {
+        let model = s_build_active_model(y, row, header, ctx, default_balance, first_id)
+            .map_err(|error| located(error, sheet.start()))?;
+        counts.add(model.difficulty_level.unwrap());
+    }
+    Ok(counts)
 }
 
 // 返回匹配到的数据
 async fn load_item_check(
+    State(ComplexState { db, .. }): State<ComplexState<impl Runtime>>,
     Json(CheckItemImport {
         path,
         sheet,
         ctx,
         data_include_header,
+        allow_non_positive: _,
     }): Json<CheckItemImport>,
 ) -> R {
-    let sheet = use_range_data(path, sheet)?;
+    let sheet = blocking(move || use_range_data(path, sheet)).await?;
 
     let data_include_header = data_include_header as usize;
+    let first_id = if ctx.id.is_none() {
+        item::Entity::next_pk(&db)
+            .await
+            .map_err(DataloaderErrKind::LoadDataDb)?
+    } else {
+        1
+    };
 
-    let total = sheet.rows().len() - data_include_header;
+    let total = sheet.rows().len().saturating_sub(data_include_header);
 
     let first_data = sheet
         .rows()
         .skip(data_include_header)
         .next()
-        .ok_or(DataloaderErrKind::DataNotFound(String::from("第一行学生")))?;
+        .ok_or(DataloaderErrKind::DataNotFound(String::from("第一行商品")))?;
 
+    // Preview validates every row, not only the displayed first row.
+    let validation_sheet = sheet.clone();
+    let validation_ctx = ctx.clone();
+    let warnings = blocking(move || {
+        for (y, row) in validation_sheet
+            .rows()
+            .skip(data_include_header)
+            .enumerate()
+        {
+            i_build_active_model(y, row, data_include_header, &validation_ctx, first_id)
+                .map_err(|error| located(error, validation_sheet.start()))?;
+        }
+        Ok(item_warnings(
+            &validation_sheet,
+            &validation_ctx,
+            data_include_header,
+        ))
+    })
+    .await?;
     let first_item = TryLoadedItemModel {
         id: ctx
             .id
@@ -360,6 +461,7 @@ async fn load_item_check(
     };
 
     ok!(CheckItemImportReturn {
+        warnings,
         first_item,
         ctx,
         total
@@ -377,7 +479,7 @@ struct LoadWorksheetData {
 async fn load_worksheet_data(
     Json(LoadWorksheetData { path, sheet }): Json<LoadWorksheetData>,
 ) -> R {
-    let sheet = use_range_data(path, sheet)?;
+    let sheet = blocking(move || use_range_data(path, sheet)).await?;
     let data = sheet
         .rows()
         .take(5)
@@ -394,18 +496,26 @@ struct LoadWorksheet {
 
 /// 获得工作表名
 async fn load_worksheet(Json(LoadWorksheet { path }): Json<LoadWorksheet>) -> R {
-    let path = check_path(path)?;
-    let sheets = use_sheets(path)?;
-    let sheet_names = sheets.sheet_names();
+    let sheet_names = blocking(move || {
+        let sheets = use_sheets(check_path(path)?)?;
+        Ok(sheets.sheet_names())
+    })
+    .await?;
     ok!(sheet_names)
 }
 
 async fn check_db(State(ComplexState { ref db, .. }): State<ComplexState<impl Runtime>>) -> R {
-    let GetNextPk { item, stu } = GetNextPk::new(db).await?;
-
-    tracing::debug!("check db: item next pk: {}, student next pk: {}", item, stu);
-
-    if stu != 1 || item != 1 {
+    if item::Entity::find()
+        .one(db)
+        .await
+        .map_err(|e| DataloaderErrKind::CheckDb(e, "item"))?
+        .is_some()
+        || student::Entity::find()
+            .one(db)
+            .await
+            .map_err(|e| DataloaderErrKind::CheckDb(e, "student"))?
+            .is_some()
+    {
         return Err(DataloaderErrKind::DbDirty.into());
     }
 
@@ -441,6 +551,7 @@ async fn init_db(State(ComplexState { app, db }): State<ComplexState<impl Runtim
         .map_err(DataloaderErrKind::DbMigrate)?;
 
     let conf = app.state::<Config>().clone_();
+    let _operation = conf.operation().await;
 
     app.set_router(crate::router::app(conf, db_path, app.clone()))
         .await;
@@ -455,4 +566,50 @@ async fn idem_init_db(s: State<ComplexState<impl Runtime>>) -> R {
     }
 
     init_db(s).await
+}
+
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, DataloaderErrKind> + Send + 'static,
+) -> Result<T, DataloaderErrKind> {
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|e| DataloaderErrKind::Worker(e.to_string()))?
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "./dataloader.ts")]
+struct ImportWarning {
+    row: usize,
+    column: usize,
+    field: String,
+    value: String,
+}
+
+fn item_warnings(
+    sheet: &calamine::Range<calamine::Data>,
+    ctx: &LoadItemContext,
+    header: usize,
+) -> Vec<ImportWarning> {
+    let mut warnings = Vec::new();
+    let (row_offset, column_offset) = sheet.start().unwrap_or_default();
+    for (y, row) in sheet.rows().skip(header).enumerate() {
+        for (index, field) in [
+            (ctx.i_p, "原价"),
+            (ctx.i_p_hard, "特别困难价格"),
+            (ctx.i_p_normal, "困难价格"),
+            (ctx.i_p_easy, "一般困难价格"),
+            (ctx.i_p_score, "积分价格"),
+        ] {
+            let value = row.get(index).map(ToString::to_string).unwrap_or_default();
+            if value.parse::<Decimal>().is_ok_and(|v| v <= Decimal::ZERO) {
+                warnings.push(ImportWarning {
+                    row: y + header + 1 + row_offset as usize,
+                    column: index + 1 + column_offset as usize,
+                    field: field.into(),
+                    value,
+                });
+            }
+        }
+    }
+    warnings
 }

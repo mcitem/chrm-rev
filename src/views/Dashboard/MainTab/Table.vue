@@ -1,7 +1,7 @@
 <template>
   <div
     ref="tableWrap"
-    class="flex-1 flex-shrink overflow-hidden"
+    class="min-h-0 flex-1 flex-shrink overflow-hidden"
     style="background-color: var(--ant-color-bg-container)"
   >
     <a-table

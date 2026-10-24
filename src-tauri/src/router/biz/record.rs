@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use crate::router::{prelude::*, response::error::biz::ExportRecordErr};
 
 use encoding_rs::GBK;
+use sea_orm::TransactionTrait;
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
 pub fn router() -> Router<AppState> {
@@ -60,7 +61,7 @@ struct ExportRequest {
     pub sign: String,
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, Deserialize, TS)]
 #[ts(export, export_to = "mutation.ts")]
 struct ExportResponse {
     #[serde(with = "rust_decimal::serde::str")]
@@ -73,14 +74,9 @@ async fn export_record(
     State(AppState { ref db, config }): State<AppState>,
     Json(ExportRequest { sign }): Json<ExportRequest>,
 ) -> Result<AppResponse<serde_json::Value>, ExportRecordErr> {
+    let _operation = config.operation().await;
     let legacy = config.legacy_export_format().await;
-    let path = config.export_path().await;
-
-    let mut file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(path)
-        .await?;
+    let path = std::path::absolute(config.export_path().await?)?;
 
     let rec = record::Entity::find().all(db).await?;
 
@@ -95,13 +91,13 @@ async fn export_record(
                 count += 1;
                 let item_price = r.discount_price * Decimal::from(r.quantity);
                 out += &format!(
-                    "{},'{}',{},{},{},{},{},{},{},{}\r\n",
+                    "{},{},{},{},{},{},{},{},{},{}\r\n",
                     count,
-                    r.student_no,
+                    csv_field(&format!("'{}'", r.student_no)),
                     r.stu_d_level,
                     r.item_id,
-                    r.item_name,
-                    r.item_spec,
+                    csv_field(&r.item_name),
+                    csv_field(&r.item_spec),
                     r.original_price,
                     r.discount_price,
                     r.quantity,
@@ -111,7 +107,7 @@ async fn export_record(
             });
 
             out += &format!(",,,,,,,,,{}\r\n", total_discount_price);
-            out += &format!("{},,,,,,,,,\r\n", sign);
+            out += &format!("{},,,,,,,,,\r\n", csv_field(&sign));
             out += "$$$$,,,,,,,,,\r\n";
         }
         true => {
@@ -119,9 +115,9 @@ async fn export_record(
                 for _ in 0..r.quantity {
                     count += 1;
                     out += &format!(
-                        "{},'{}',{},{},{},{}\r\n",
+                        "{},{},{},{},{},{}\r\n",
                         count,
-                        r.student_no,
+                        csv_field(&format!("'{}'", r.student_no)),
                         r.stu_d_level,
                         r.item_id,
                         r.discount_price,
@@ -132,16 +128,49 @@ async fn export_record(
             });
 
             out += &format!(",,,,{},\r\n", total_discount_price);
-            out += &format!("{},,,,,\r\n", sign);
+            out += &format!("{},,,,,\r\n", csv_field(&sign));
             out += "$$$$,,,,,\r\n";
         }
     };
 
-    let (bytes, _, _) = GBK.encode(&out);
-    file.write_all(&bytes).await?;
-
-    ok!(ExportResponse {
+    let response = ExportResponse {
         total_discount_price,
         out,
-    })
+    };
+    if rec.is_empty() {
+        return ok!(response);
+    }
+    let (bytes, _, had_errors) = GBK.encode(&response.out);
+    if had_errors {
+        return Err(
+            std::io::Error::other("导出内容含 GBK 无法表示的字符，请修改签名或商品信息").into(),
+        );
+    }
+    let mut file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(&path)
+        .await?;
+    file.write_all(&bytes).await?;
+    file.sync_all().await?;
+
+    let txn = db.begin().await?;
+    let ids: Vec<_> = rec.iter().map(|r| r.id).collect();
+    // Keep each query within SQLite's parameter limit.
+    for chunk in ids.chunks(900) {
+        record::Entity::delete_many()
+            .filter(record::Column::Id.is_in(chunk.iter().copied()))
+            .exec(&txn)
+            .await?;
+    }
+    txn.commit().await?;
+    ok!(response)
+}
+
+fn csv_field(value: &str) -> String {
+    if value.contains([',', '"', '\r', '\n']) {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_owned()
+    }
 }

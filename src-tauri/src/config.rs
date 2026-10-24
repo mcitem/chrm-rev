@@ -1,29 +1,43 @@
 use rust_decimal::Decimal;
 use rust_decimal::dec;
+use sea_orm::{ConnectionTrait, DbBackend, DbErr, Statement};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::primitive::str;
 use std::{ops::Deref, sync::Arc};
-use tauri::Manager;
-use tauri::Runtime;
 use tokio::sync::RwLock;
 use ts_rs::TS;
 
-pub const CONFIG_FILE_NAME: &str = "chrm-rev.config.json";
 pub const DB_FILE_NAME: &str = "chrm-rev.sqlite.db";
 
 #[derive(Clone, Default)]
-pub struct Config(Arc<RwLock<ConfigInner>>);
+pub struct Config(Arc<RwLock<ConfigInner>>, Arc<tokio::sync::Mutex<()>>);
 
 impl Config {
     pub fn new(arc: ConfigInner) -> Self {
-        Self(Arc::new(RwLock::new(arc)))
+        Self(Arc::new(RwLock::new(arc)), Arc::default())
+    }
+    pub async fn operation(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.1.clone().lock_owned().await
     }
     pub fn clone_(&self) -> Self {
         self.clone()
     }
-    pub async fn export_path(&self) -> PathBuf {
-        self.0.read().await.export_path.clone()
+    pub async fn export_path(&self) -> std::io::Result<PathBuf> {
+        let path = self.0.read().await.export_path.clone();
+        if path.as_os_str().to_string_lossy().trim().is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "尚未配置导出路径，请在系统配置中设置 CSV 文件的完整路径并保存",
+            ));
+        }
+        if path.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "导出路径指向文件夹，请在系统配置中填写 CSV 文件的完整路径并保存",
+            ));
+        }
+        Ok(path)
     }
     pub async fn legacy_export_format(&self) -> bool {
         self.0.read().await.legacy_export_format
@@ -67,14 +81,27 @@ pub struct ConfigInner {
 }
 
 impl ConfigInner {
-    pub async fn save<RT: Runtime>(
-        &self,
-        app_handle: &tauri::AppHandle<RT>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let data_dir = app_handle.path().app_data_dir()?;
-        let conf_path = data_dir.join(CONFIG_FILE_NAME);
-        let contents = serde_json::to_string_pretty(self)?;
-        tokio::fs::write(&conf_path, contents).await?;
+    pub async fn load(db: &impl ConnectionTrait) -> Result<Option<Self>, DbErr> {
+        let row = db
+            .query_one_raw(Statement::from_string(
+                DbBackend::Sqlite,
+                "SELECT value FROM app_config WHERE id = 1",
+            ))
+            .await?;
+        if let Some(row) = row {
+            let value: String = row.try_get("", "value")?;
+            return serde_json::from_str(&value)
+                .map(Some)
+                .map_err(|e| DbErr::Custom(format!("解析数据库配置失败: {e}")));
+        }
+        Ok(None)
+    }
+
+    pub async fn save(&self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
+        let contents = serde_json::to_string(self).map_err(|e| DbErr::Custom(e.to_string()))?;
+        db.execute_raw(Statement::from_sql_and_values(DbBackend::Sqlite,
+            "INSERT INTO app_config (id, value) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value",
+            [contents.into()])).await?;
         Ok(())
     }
 }

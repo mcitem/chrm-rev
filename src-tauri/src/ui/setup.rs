@@ -1,12 +1,9 @@
-use crate::config::CONFIG_FILE_NAME;
 use crate::config::Config;
 use crate::config::ConfigInner;
 use crate::config::DB_FILE_NAME;
 use crate::utils::SqlitePath;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
-use sea_orm::DatabaseConnection;
-use sea_orm::DbErr;
 use sea_orm_migration::MigratorTrait;
 use serde::Serialize;
 use std::ops::Deref;
@@ -61,37 +58,22 @@ where
 
     std::fs::create_dir_all(&data_dir)?;
 
-    let conf_path = data_dir.join(CONFIG_FILE_NAME);
-
-    let (conf, conf_ready) = if conf_path.exists()
-        && let Ok(conf_str) = std::fs::read_to_string(&conf_path)
-        && let Ok(conf) = serde_json::from_str::<ConfigInner>(&conf_str)
-    {
-        (Config::new(conf), true)
-    } else {
-        (Default::default(), false)
-    };
-
     let db_path = data_dir.join(DB_FILE_NAME);
-
-    let (db, db_ready) = if db_path.exists()
-        && let Ok(db) = tauri::async_runtime::block_on(async move {
-            let opt: ConnectOptions = SqlitePath(db_path).into();
-            let db = Database::connect(opt).await?;
-            let pending = crate::Migrator::get_pending_migrations(&db).await?;
-
-            // println!("pending migration: {}", pending.len());
-
-            if pending.is_empty() {
-                Ok::<(DatabaseConnection, bool), DbErr>((db, true))
-            } else {
-                Ok((db, false))
-            }
-        }) {
-        db
-    } else {
-        (Default::default(), false)
-    };
+    let previous = data_dir.join(format!("{DB_FILE_NAME}.previous"));
+    if !db_path.exists() && previous.exists() {
+        std::fs::rename(previous, &db_path)?;
+    }
+    let (db, loaded_conf, db_ready) = tauri::async_runtime::block_on(async {
+        let opt: ConnectOptions = SqlitePath(db_path).into();
+        let db = Database::connect(opt).await?;
+        // Configuration must be writable before the data import wizard starts.
+        crate::Migrator::up(&db, None).await?;
+        let db_ready = crate::utils::data_ready(&db).await?;
+        let loaded_conf = ConfigInner::load(&db).await?;
+        Ok::<_, sea_orm::DbErr>((db, loaded_conf, db_ready))
+    })?;
+    let conf_ready = loaded_conf.is_some();
+    let conf = Config::new(loaded_conf.unwrap_or_default());
 
     app.manage(conf.clone());
 

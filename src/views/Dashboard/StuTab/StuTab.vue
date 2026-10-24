@@ -1,11 +1,11 @@
 <template>
-  <div class="flex h-full flex-col pt-4">
+  <div class="flex h-full min-h-0 flex-col pt-4">
     <Description :id="props.id" class="flex-shrink-0 px-5" />
-    <Search :id="props.id" :mutate-fn="set_item.mutate" />
+    <Search :id="props.id" :add-item="itemId => changeQuantity(itemId, 1)" />
 
     <div
       ref="tableWrap"
-      class="flex-1 flex-shrink overflow-hidden"
+      class="min-h-0 flex-1 flex-shrink overflow-hidden"
       style="background-color: var(--ant-color-bg-container)"
     >
       <a-table
@@ -21,7 +21,7 @@
     </div>
     <div
       class="flex-shrink-0 px-3 py-4 text-right"
-      style="background: var(--ant-table-footer-bg)"
+      style="background: var(--ant-color-bg-container)"
     >
       共 {{ records.data.value?.summary.category_count }} 种，
       {{ records.data.value?.summary.total_quantity }} 件，总计（折后价）
@@ -30,24 +30,46 @@
   </div>
 
   <a-modal
-    v-if=" tab === student?.student_no"
+    :open="difficultyWarningOpen && tab === student?.student_no"
+    centered
+    title="贫困认定提醒"
+    @cancel="difficultyWarningOpen = false"
+  >
+    <p>
+      {{ student?.name }}（学号：{{
+        student?.student_no
+      }}）的认定级别为“不困难”，这位同学可能没有通过贫困认定，请核实后再办理登记。
+    </p>
+    <template #footer>
+      <a-button type="primary" @click="difficultyWarningOpen = false">
+        我已知晓
+      </a-button>
+    </template>
+  </a-modal>
+
+  <a-modal
+    v-if="tab === student?.student_no"
     v-model:open="open"
     centered
     :closable="false"
     title="余额不足"
     cancel-text="不再提醒"
-    @ok="() => {
-      open = false
-    }"
-    @cancel="() => {
-      open = false
-      noOpen = true
-    }"
+    @ok="
+      () => {
+        open = false
+      }
+    "
+    @cancel="
+      () => {
+        open = false
+        noOpen = true
+      }
+    "
   >
     <p>余额不足，请合理删减购买的商品</p>
     <template #footer="{ extra }">
       <component :is="extra.CancelBtn" />
-      <a-button @click="() => instance.post('/sys/open_docs', { })">
+      <a-button @click="() => instance.post('/sys/open_docs', {})">
         帮助
       </a-button>
       <component :is="extra.OkBtn" />
@@ -63,7 +85,12 @@ import type { DashboardHomeContext } from '@/lib/context'
 import { DeleteOutlined, LineOutlined, PlusOutlined } from '@antdv-next/icons'
 import { useElementSize } from '@vueuse/core'
 import { DASHBOARD_HOME_CONTEXT_KEY } from '@/lib/context'
-import { instance, useStudent, useStudentRecordsWithSummary } from '@/lib/service'
+import { databaseChanging, databaseGeneration } from '@/lib/databaseSession'
+import {
+  instance,
+  useStudent,
+  useStudentRecordsWithSummary,
+} from '@/lib/service'
 
 import Description from './Description.vue'
 import Search from './Search.vue'
@@ -75,6 +102,17 @@ const props = defineProps<{
 const { tab } = inject<DashboardHomeContext>(DASHBOARD_HOME_CONTEXT_KEY)!
 const { data: student } = useStudent(props.id)
 
+const difficultyWarningOpen = ref(false)
+watch(
+  () =>
+    tab.value === student.value?.student_no
+    && student.value?.difficulty_level === '不困难',
+  (shouldWarn) => {
+    difficultyWarningOpen.value = shouldWarn
+  },
+  { immediate: true },
+)
+
 const open = ref(false)
 const noOpen = ref(false)
 watch(
@@ -83,7 +121,7 @@ watch(
     if (newVal && oldVal) {
       const new_val = Number.parseFloat(newVal)
       const old_val = Number.parseFloat(oldVal)
-      if (new_val < old_val && new_val < -5) {
+      if (!noOpen.value && new_val < old_val && new_val < -5) {
         open.value = true
       }
     }
@@ -100,14 +138,14 @@ const set_item = useMutation({
       quantity: data.quantity,
     }),
 
-  onSuccess() {
-    queryClient.invalidateQueries({
+  async onSuccess() {
+    await queryClient.invalidateQueries({
       queryKey: ['biz', 'record', props.id],
     })
-    queryClient.invalidateQueries({
+    await queryClient.invalidateQueries({
       queryKey: ['biz', 'student', props.id],
     })
-    queryClient.invalidateQueries({
+    await queryClient.invalidateQueries({
       queryKey: ['biz', 'record', 'all_with_summary'],
     })
   },
@@ -116,18 +154,54 @@ const set_item = useMutation({
 const delete_item = useMutation({
   mutationFn: (item_id: number) =>
     instance.delete(`/biz/student/${props.id}/record/${item_id}`),
-  onSuccess() {
-    queryClient.invalidateQueries({
+  async onSuccess() {
+    await queryClient.invalidateQueries({
       queryKey: ['biz', 'record', props.id],
     })
-    queryClient.invalidateQueries({
+    await queryClient.invalidateQueries({
       queryKey: ['biz', 'student', props.id],
     })
-    queryClient.invalidateQueries({
+    await queryClient.invalidateQueries({
       queryKey: ['biz', 'record', 'all_with_summary'],
     })
   },
 })
+
+let disposed = false
+onUnmounted(() => {
+  disposed = true
+})
+let pendingQuantity = Promise.resolve()
+function changeQuantity(itemId: number, delta: number | null) {
+  const generation = databaseGeneration.value
+  const active = () =>
+    !disposed && !databaseChanging.value && generation === databaseGeneration.value
+  pendingQuantity = pendingQuantity
+    .then(async () => {
+      if (!active())
+        return
+      const current = await queryClient.fetchQuery<Record[]>({
+        queryKey: ['biz', 'record', props.id],
+        queryFn: () => instance.get(`/biz/student/${props.id}/record`),
+        staleTime: 0,
+      })
+      if (!active())
+        return
+      const existing = current.find(record => record.item_id === itemId)
+      const quantity = delta === null ? 0 : (existing?.quantity ?? 0) + delta
+      if (quantity <= 0) {
+        if (existing)
+          await delete_item.mutateAsync(itemId)
+      }
+      else {
+        await set_item.mutateAsync({ item_id: itemId, quantity })
+      }
+    })
+    .catch(() => {
+      /* The response interceptor displays request errors. */
+    })
+  return pendingQuantity
+}
 
 const columns: TableProps['columns'] = [
   {
@@ -190,11 +264,7 @@ const columns: TableProps['columns'] = [
           shape="circle"
           color="red"
           size="small"
-          onClick={() =>
-            set_item.mutate({
-              item_id: (record as Record).item_id,
-              quantity: (record as Record).quantity + 1,
-            })}
+          onClick={() => changeQuantity((record as Record).item_id, 1)}
           styles={
             {
               root: {
@@ -213,15 +283,7 @@ const columns: TableProps['columns'] = [
           shape="circle"
           color="red"
           size="small"
-          onClick={() => {
-            const quantity = (record as Record).quantity - 1
-            quantity > 0
-              ? set_item.mutate({
-                  item_id: (record as Record).item_id,
-                  quantity,
-                })
-              : delete_item.mutate((record as Record).item_id)
-          }}
+          onClick={() => changeQuantity((record as Record).item_id, -1)}
           styles={
             {
               root: {
@@ -240,7 +302,7 @@ const columns: TableProps['columns'] = [
           shape="circle"
           color="red"
           size="small"
-          onClick={() => delete_item.mutate((record as Record).item_id)}
+          onClick={() => changeQuantity((record as Record).item_id, null)}
           styles={
             {
               root: {

@@ -8,6 +8,17 @@
       <div class="pb-1 text-xl font-bold">
         预览导入
       </div>
+      <a-alert
+        v-if="checkImport.isError.value"
+        class="mb-3"
+        type="error"
+        show-icon
+        title="学生数据校验失败，无法导入"
+        :description="
+          (checkImport.error.value as AxiosError)?.response?.data?.msg
+            || '请检查数据或列映射，返回上一步后重试。'
+        "
+      />
       <div class="pb-2 font-semibold">
         以下为第一行数据，请确认数据是否正确
       </div>
@@ -19,7 +30,6 @@
         :columns="
           OPTIONS.map(i => {
             const replace = i.value.replace('s_', '')
-            console.log(replace)
             return {
               title: i.label,
               key: replace,
@@ -34,11 +44,29 @@
         "
       />
 
-      <div class="pt-3 font-bold">
-        预计导入
-        <span> {{ checkImport.data.value?.total || 0 }}</span>
-        条数据，确认无误后请点击完成导入
-      </div>
+      <template v-if="checkImport.isSuccess.value">
+        <div class="pb-2 pt-4 font-bold">
+          请核对本次导入的学生人数
+        </div>
+        <a-table
+          :pagination="false"
+          :columns="countColumns"
+          :data-source="[
+            {
+              key: 'counts',
+              ...checkImport.data.value!.difficulty_counts,
+              total: checkImport.data.value!.total,
+            },
+          ]"
+        />
+        <a-checkbox
+          v-model:checked="countsConfirmed"
+          class="mt-3"
+          :disabled="importItem.isPending.value"
+        >
+          我已核对各困难等级人数及总人数，确认导入
+        </a-checkbox>
+      </template>
     </div>
   </div>
 
@@ -46,6 +74,7 @@
     <help-button class="mr-2" />
     <a-button
       class="mr-2"
+      :disabled="importItem.isPending.value"
       @click="
         () => {
           instance.post('/sys/dataloader/skip').then(() => {
@@ -60,6 +89,7 @@
     </a-button>
     <a-button
       class="mr-2"
+      :disabled="importItem.isPending.value"
       @click="
         () => {
           if (importStep === 0) {
@@ -89,15 +119,16 @@
           }
           else if (importStep === 1) {
             importStep = 2
+            countsConfirmed = false
             checkImport.mutate()
           }
           else if (importStep === 2) {
-            importItem.mutate()
+            if (!nextStepDisabled) importItem.mutate()
           }
         }
       "
     >
-      下一步
+      {{ importStep === 2 ? '完成导入' : '下一步' }}
     </a-button>
   </div>
 </template>
@@ -110,6 +141,7 @@ import type {
   LoadStuContext,
 } from '@/bindings/dataloader'
 import type { ImportContext } from '@/lib/context'
+import type { AxiosError } from '@/lib/service'
 import { message } from 'antdv-next'
 import { IMPORT_CONTEXT_KEY } from '@/lib/context'
 import { instance } from '@/lib/service'
@@ -177,6 +209,14 @@ const OPTIONS = [
 ]
 
 const importStep = ref(0)
+const countsConfirmed = ref(false)
+const countColumns = [
+  { title: '不困难（人）', dataIndex: 'peaceful', key: 'peaceful' },
+  { title: '一般困难（人）', dataIndex: 'easy', key: 'easy' },
+  { title: '困难（人）', dataIndex: 'normal', key: 'normal' },
+  { title: '特别困难（人）', dataIndex: 'hard', key: 'hard' },
+  { title: '总人数（人）', dataIndex: 'total', key: 'total' },
+]
 const path = ref('')
 const selectedSheet = ref('')
 const dataIncludeHeader = ref(true)
@@ -204,31 +244,21 @@ const checkImport = useMutation({
   },
 })
 
-const nextStepDisabled = computed(() => {
-  if (importStep.value === 0) {
-    return !selectedSheet.value
-  }
-  else if (importStep.value === 1) {
-    return OPTIONS.filter(option => option.required).some((option) => {
-      return loadContext.value[option.value as keyof LoadStuContext] === null
-    })
-  }
-  else if (importStep.value === 2) {
-    return !checkImport.isSuccess.value
-  }
-  else {
-    return false
-  }
-})
-
 const importItem = useMutation({
   mutationFn: async () => {
-    const res = (await instance.post('/sys/dataloader/load/stu', {
-      path: path.value,
-      sheet: selectedSheet.value,
-      data_include_header: dataIncludeHeader.value,
-      ctx: loadContext.value as unknown as LoadStuContext,
-    } satisfies CheckStuImport)) as number
+    const res = (await instance.post(
+      '/sys/dataloader/load/stu',
+      {
+        path: path.value,
+        sheet: selectedSheet.value,
+        data_include_header: dataIncludeHeader.value,
+        ctx: loadContext.value as unknown as LoadStuContext,
+      } satisfies CheckStuImport,
+      {
+        // Keep the existing loading state until the entire import commits.
+        timeout: 0,
+      },
+    )) as number
     return res
   },
   onSuccess: async (res) => {
@@ -239,6 +269,28 @@ const importItem = useMutation({
       path: '/',
     })
   },
+})
+
+const nextStepDisabled = computed(() => {
+  if (importItem.isPending.value)
+    return true
+  if (importStep.value === 0) {
+    return !selectedSheet.value
+  }
+  else if (importStep.value === 1) {
+    return !OPTIONS.filter(option => option.required).every((option) => {
+      const column = loadContext.value[option.value]
+      return (
+        typeof column === 'number' && Number.isInteger(column) && column >= 0
+      )
+    })
+  }
+  else if (importStep.value === 2) {
+    return !checkImport.isSuccess.value || !countsConfirmed.value
+  }
+  else {
+    return false
+  }
 })
 
 provide<ImportContext>(IMPORT_CONTEXT_KEY, {
