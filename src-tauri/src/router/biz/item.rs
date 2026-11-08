@@ -25,17 +25,23 @@ async fn get_item(State(ref db): State<DbConn>, Path(id): Path<i32>) -> R {
 }
 
 async fn on_put(
-    State(ref db): State<DbConn>,
-    Path(_): Path<i32>,
-    Json(item): Json<serde_json::Value>,
+    State(AppState { ref db, config }): State<AppState>,
+    Path(id): Path<i32>,
+    Json(mut item): Json<serde_json::Value>,
 ) -> R {
-    let item = item::ActiveModel::from_json(item)?;
+    let _operation = config.operation().await;
+    if let Some(object) = item.as_object_mut() {
+        object.insert("id".into(), serde_json::json!(id));
+    }
+    let mut item = item::ActiveModel::from_json(item)?;
+    item.id = sea_orm::Set(id);
     let res: item::Model = item.update(db).await?;
 
     ok!(res)
 }
 
-async fn on_delete(State(ref db): State<DbConn>, Path(id): Path<i32>) -> R {
+async fn on_delete(State(AppState { ref db, config }): State<AppState>, Path(id): Path<i32>) -> R {
+    let _operation = config.operation().await;
     let res = item::Entity::delete_by_id(id).exec(db).await?;
     ok!(res.rows_affected)
 }

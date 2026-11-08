@@ -10,11 +10,15 @@ pub enum BizErrKind {
     StuNotFound,
     ItemNotFound,
     RecordNotFound,
+    InvalidEdit(String),
     ExportRecord(ExportRecordErr),
 }
 
 impl_app_error!(
     for BizErrKind;
+    BAD_REQUEST => [
+        InvalidEdit(e); e.clone(),
+    ],
     INTERNAL_SERVER_ERROR => [
         DbErr(e); format!("数据库错误: {}", e),
         ColumnFromStrErr(e); format!("传入的列名不是有效值{}", e),

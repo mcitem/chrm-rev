@@ -41,8 +41,14 @@ import {
 import { open } from '@tauri-apps/plugin-dialog'
 import { useColorMode } from '@vueuse/core'
 import { App } from 'antdv-next'
+import {
+  beginDatabaseChange,
+  endDatabaseChange,
+  resetDatabaseSession,
+} from '@/lib/databaseSession'
 
 const { message } = App.useApp()
+const queryClient = useQueryClient()
 const { store: theme } = useColorMode()
 
 const menuPropsConst: MenuProps = {
@@ -63,6 +69,11 @@ const menuPropsConst: MenuProps = {
       label: '管理',
       icon: DatabaseOutlined,
       children: [
+        {
+          key: 'DataManager',
+          label: '学生与商品管理',
+          icon: TableOutlined,
+        },
         {
           key: 'DataDir',
           label: '数据目录',
@@ -162,6 +173,9 @@ const menuPropsConst: MenuProps = {
         })
       })
     }
+    else if (e.key === 'DataManager') {
+      router.push('/datamanager')
+    }
     else if (e.key === 'Export') {
       instance.post('/sys/data_manager/export_all/check', {}).then(async () => {
         const res = (await instance.post(
@@ -177,30 +191,37 @@ const menuPropsConst: MenuProps = {
       })
     }
     else if (e.key === 'Backup') {
-      instance.post('/sys/backup/create', {}).then((path) => {
+      instance.post('/sys/backup/create', {}, { timeout: 0 }).then((path) => {
         message.success(`备份已保存至：${path}`)
       })
     }
     else if (e.key === 'Restore') {
       open({
         multiple: false,
-        title: '选择备份文件',
+        title: '选择数据库备份文件',
         directory: false,
         filters: [
           {
-            name: 'Zip Files',
-            extensions: ['zip'],
+            name: 'SQLite 数据库备份',
+            extensions: ['db'],
           },
         ],
       }).then((path) => {
         if (path) {
+          beginDatabaseChange()
           instance
-            .post('/sys/backup/rollback', {
-              path: path as string,
-            } satisfies RollBackBackup)
-            .then(() => {
+            .post(
+              '/sys/backup/rollback',
+              {
+                path: path as string,
+              } satisfies RollBackBackup,
+              { timeout: 0 },
+            )
+            .then(async () => {
+              await resetDatabaseSession(queryClient)
               message.success('恢复成功')
             })
+            .finally(endDatabaseChange)
         }
       })
     }

@@ -12,6 +12,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AAlert: typeof import('antdv-next')['Alert']
     AApp: typeof import('antdv-next')['App']
     AAutoComplete: typeof import('antdv-next')['AutoComplete']
     AButton: typeof import('antdv-next')['Button']
@@ -22,8 +23,12 @@ declare module 'vue' {
     ADivider: typeof import('antdv-next')['Divider']
     ADropdown: typeof import('antdv-next')['Dropdown']
     AInput: typeof import('antdv-next')['Input']
+    AInputSearch: typeof import('antdv-next')['InputSearch']
     AModal: typeof import('antdv-next')['Modal']
+    APagination: typeof import('antdv-next')['Pagination']
     APopover: typeof import('antdv-next')['Popover']
+    ARadioButton: typeof import('antdv-next')['RadioButton']
+    ARadioGroup: typeof import('antdv-next')['RadioGroup']
     ASelect: typeof import('antdv-next')['Select']
     ASplitter: typeof import('antdv-next')['Splitter']
     ASplitterPanel: typeof import('antdv-next')['SplitterPanel']
@@ -33,6 +38,7 @@ declare module 'vue' {
     ATabs: typeof import('antdv-next')['Tabs']
     ATag: typeof import('antdv-next')['Tag']
     DynamicTags: typeof import('./../components/DynamicTags.vue')['default']
+    ExportPathModal: typeof import('./../components/ExportPathModal.vue')['default']
     HelpButton: typeof import('./../components/HelpButton.vue')['default']
     ImportSiderBar: typeof import('./../components/ImportSiderBar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
@@ -44,6 +50,7 @@ declare module 'vue' {
 
 // For TSX support
 declare global {
+  const AAlert: typeof import('antdv-next')['Alert']
   const AApp: typeof import('antdv-next')['App']
   const AAutoComplete: typeof import('antdv-next')['AutoComplete']
   const AButton: typeof import('antdv-next')['Button']
@@ -54,8 +61,12 @@ declare global {
   const ADivider: typeof import('antdv-next')['Divider']
   const ADropdown: typeof import('antdv-next')['Dropdown']
   const AInput: typeof import('antdv-next')['Input']
+  const AInputSearch: typeof import('antdv-next')['InputSearch']
   const AModal: typeof import('antdv-next')['Modal']
+  const APagination: typeof import('antdv-next')['Pagination']
   const APopover: typeof import('antdv-next')['Popover']
+  const ARadioButton: typeof import('antdv-next')['RadioButton']
+  const ARadioGroup: typeof import('antdv-next')['RadioGroup']
   const ASelect: typeof import('antdv-next')['Select']
   const ASplitter: typeof import('antdv-next')['Splitter']
   const ASplitterPanel: typeof import('antdv-next')['SplitterPanel']
@@ -65,6 +76,7 @@ declare global {
   const ATabs: typeof import('antdv-next')['Tabs']
   const ATag: typeof import('antdv-next')['Tag']
   const DynamicTags: typeof import('./../components/DynamicTags.vue')['default']
+  const ExportPathModal: typeof import('./../components/ExportPathModal.vue')['default']
   const HelpButton: typeof import('./../components/HelpButton.vue')['default']
   const ImportSiderBar: typeof import('./../components/ImportSiderBar.vue')['default']
   const RouterLink: typeof import('vue-router')['RouterLink']

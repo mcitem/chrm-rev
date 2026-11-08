@@ -21,6 +21,11 @@ export default antfu(
       'no-console': 'off',
     },
     ignores: [
+      '.github/workflows/build.yml',
+      '.vscode/settings.json',
+      'rust-toolchain.toml',
+      'src-tauri/Cargo.toml',
+      'src-tauri/tauri.conf.json',
       './dist/**/*',
       './target/**/*',
       './node_modules/**/*',

@@ -16,7 +16,7 @@ https://www.jetbrains.com/datagrip/
 
 ## 准备
 
-你需要将数据库文件提取到自己的个人电脑上，你可以手动从数据目录中备份出来，也可以直接解压`菜单-管理-数据备份`生成的备份压缩文件获得。
+你需要将数据库文件提取到自己的个人电脑上，你可以手动从数据目录中备份出来，也可以直接使用`菜单-管理-数据备份`生成的 `.db` 数据库文件。
 
 ![prepare](./assets/datagrip/2.db_file.png)
 
@@ -49,7 +49,7 @@ https://www.jetbrains.com/datagrip/
 
 ![10](./assets/datagrip/10.png)
 
-在弹出的窗口中选择我们的数据库文件`chrm-rev.sqlite.db`
+在弹出的窗口中选择我们的数据库文件`chrm-rev.1.2.0.sqlite.db`
 ![11](./assets/datagrip/11.png)
 
 点击测试连接，会提示我们下载驱动程序，点击确定

@@ -1,7 +1,30 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { message } from 'antdv-next'
 import { createRouter, createWebHistory } from 'vue-router'
+import { instance } from '@/lib/service'
 
 const routeRecord: RouteRecordRaw[] = [
+  {
+    path: '/datamanager',
+    name: 'DataManager',
+    component: () => import('@/views/DataManager/DataManager.vue'),
+    beforeEnter: async () => {
+      try {
+        const records = await instance.get('/biz/record/all')
+        if (!Array.isArray(records))
+          throw new Error('Invalid records response')
+        if (records.length) {
+          message.warning('首页还有购买记录，不允许管理。')
+          return '/dashboard'
+        }
+        return true
+      }
+      catch {
+        message.error('无法检查首页记录，请稍后重试。')
+        return '/dashboard'
+      }
+    },
+  },
   {
     path: '/',
     redirect: '/bootloader',

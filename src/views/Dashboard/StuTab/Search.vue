@@ -29,12 +29,12 @@ import type { Item } from '@/bindings/entity'
 import type { OrderPagination } from '@/bindings/utils'
 import type { DashboardHomeContext } from '@/lib/context'
 import { DASHBOARD_HOME_CONTEXT_KEY } from '@/lib/context'
-import { useItems, useStudent, useStudentRecords } from '@/lib/service'
+import { useItems, useStudent } from '@/lib/service'
 
 const props = defineProps<{
   id: number
 
-  mutateFn: (data: { item_id: number, quantity: number }) => void
+  addItem: (itemId: number) => void
 }>()
 
 const { tab } = inject<DashboardHomeContext>(DASHBOARD_HOME_CONTEXT_KEY)!
@@ -49,8 +49,6 @@ const Params = reactive<OrderPagination>({
   q: '',
 })
 
-const records = useStudentRecords(props.id)
-
 interface Option {
   value: number
   label: JSX.Element
@@ -64,11 +62,7 @@ function onSelect(
     label: JSX.Element
   },
 ) {
-  props.mutateFn({
-    item_id,
-    quantity:
-      (records.data.value?.find(r => r.item_id === item_id)?.quantity || 0) + 1,
-  })
+  props.addItem(item_id)
   nextTick(() => {
     Params.q = ''
   })
@@ -104,14 +98,14 @@ const options = computed(() => {
 watch(
   () => Params.q,
   (newVal) => {
-    if (typeof newVal === 'string' && newVal.startsWith('0') && newVal.length === 3) {
+    if (
+      typeof newVal === 'string'
+      && newVal.startsWith('0')
+      && newVal.length === 3
+    ) {
       const id = Number.parseInt(newVal)
       if (!Number.isNaN(id) && id !== 0) {
-        props.mutateFn({
-          item_id: id,
-          quantity:
-            (records.data.value?.find(r => r.item_id === id)?.quantity || 0) + 1,
-        })
+        props.addItem(id)
 
         Params.q = ''
       }

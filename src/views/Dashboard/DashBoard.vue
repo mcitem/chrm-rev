@@ -8,8 +8,10 @@
       root: { height: '100%' },
       header: { gap: 0 },
       item: { borderRadius: 0, margin: 0 },
+      body: { height: '100%' },
       content: {
         height: '100%',
+        overflow: 'hidden',
       },
     }"
     @edit="
@@ -64,10 +66,6 @@ provide<DashboardHomeContext>(DASHBOARD_HOME_CONTEXT_KEY, {
 <style scoped>
 ::v-deep(.ant-tabs-nav) {
   margin: 0;
-}
-
-::v-deep(.ant-tabs-content.ant-tabs-content-top) {
-  height: 100%;
 }
 
 ::v-deep(.ant-tabs-tab) {

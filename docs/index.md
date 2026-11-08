@@ -1,6 +1,6 @@
-此文档仅适用于 Chrm Rev v1.1.0
+此文档仅适用于 Chrm Rev v1.2.1
 
-此文档写于 2026年4月，请结合实际情况参考。
+此文档写于 2026年10月，请结合实际情况参考。
 
 开发：mcitem
 
@@ -32,48 +32,49 @@
       <td colspan="2">不带运行时</td>
     </tr>
     <tr>
-      <td colspan="2">Github</td>
+      <td rowspan="2">v1.2.1</td>
+      <td>Github</td>
       <td>
         <a
-          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_i686-win7-windows-msvc_fixed-webview2_setup.exe"
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.2.1/chrm-rev_1.2.1_i686-win7-windows-msvc_fixed-webview2_setup.exe"
         >
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_i686-win7-windows-msvc_skip-webview2_setup.exe"
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.2.1/chrm-rev_1.2.1_i686-win7-windows-msvc_skip-webview2_setup.exe"
         >
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://github.com/mcitem/chrm-rev/releases/download/v1.1.0/chrm-rev_1.1.0_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
+          href="https://github.com/mcitem/chrm-rev/releases/download/v1.2.1/chrm-rev_1.2.1_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
         >
           下载
         </a>
       </td>
     </tr>
     <tr>
-      <td colspan="2">国内镜像</td>
+      <td>国内镜像</td>
       <td>
         <a
-          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_i686-win7-windows-msvc_fixed-webview2_setup.exe"
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.2.1_i686-win7-windows-msvc_fixed-webview2_setup.exe"
         >
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_i686-win7-windows-msvc_skip-webview2_setup.exe"
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.2.1_i686-win7-windows-msvc_skip-webview2_setup.exe"
         >
           下载
         </a>
       </td>
       <td>
         <a
-          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.1.0_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
+          href="https://oss.mcitem.net/archive/chrm-rev/chrm-rev_1.2.1_stable_x86_64-pc-windows-msvc_skip-webview2_setup.exe"
         >
           下载
         </a>

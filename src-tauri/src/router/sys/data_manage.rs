@@ -3,10 +3,7 @@ use std::path::PathBuf;
 use rand::distr::Alphanumeric;
 use rust_xlsxwriter::{workbook::Workbook, worksheet::Worksheet};
 
-use crate::{
-    router::{prelude::*, response::error::system::DataManagerErr},
-    utils::NextPrimaryKey,
-};
+use crate::router::{prelude::*, response::error::system::DataManagerErr};
 
 pub fn router<RT: Runtime>() -> Router<ComplexState<RT>> {
     Router::new()
@@ -19,13 +16,7 @@ type R = Result<AppResponse<serde_json::Value>, DataManagerErr>;
 async fn export_all_check(
     State(ComplexState { ref db, .. }): State<ComplexState<impl Runtime>>,
 ) -> R {
-    let record = record::Entity::next_pk(db).await?;
-
-    tracing::info!("record: {}", record);
-
-    if record != 1 {
-        return Err(DataManagerErr::DataInConsistentWraning);
-    }
+    check_records(db).await?;
 
     ok!(())
 }
@@ -64,32 +55,36 @@ async fn export_all(
         }
     };
 
-    let mut item_sheet = Worksheet::new();
-
-    item_sheet.set_name("item")?;
-
+    let conf = app.state::<Config>().clone_();
+    let _operation = conf.operation().await;
+    check_records(db).await?;
     let items = item::Entity::find().all(db).await?;
-
-    item_sheet.deserialize_headers::<item::Model>(0, 0)?;
-
-    item_sheet.serialize(&items)?;
-
-    let mut stu_sheet = Worksheet::new();
-
-    stu_sheet.set_name("stu")?;
-
     let students = student::Entity::find().all(db).await?;
-
-    stu_sheet.deserialize_headers::<student::Model>(0, 0)?;
-
-    stu_sheet.serialize(&students)?;
-
-    let mut workbook = Workbook::new();
-
-    workbook.push_worksheet(item_sheet);
-    workbook.push_worksheet(stu_sheet);
-
-    workbook.save(path.clone())?;
+    let output = path.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut item_sheet = Worksheet::new();
+        item_sheet.set_name("item")?;
+        item_sheet.deserialize_headers::<item::Model>(0, 0)?;
+        item_sheet.serialize(&items)?;
+        let mut stu_sheet = Worksheet::new();
+        stu_sheet.set_name("stu")?;
+        stu_sheet.deserialize_headers::<student::Model>(0, 0)?;
+        stu_sheet.serialize(&students)?;
+        let mut workbook = Workbook::new();
+        workbook.push_worksheet(item_sheet);
+        workbook.push_worksheet(stu_sheet);
+        workbook.save(output)?;
+        Ok::<_, rust_xlsxwriter::XlsxError>(())
+    })
+    .await
+    .map_err(|e| DataManagerErr::DbErr(sea_orm::DbErr::Custom(e.to_string())))??;
 
     ok!(ExportAllResponse { dst: path })
+}
+
+async fn check_records(db: &DbConn) -> Result<(), DataManagerErr> {
+    if record::Entity::find().one(db).await?.is_some() {
+        return Err(DataManagerErr::DataInConsistentWraning);
+    }
+    Ok(())
 }

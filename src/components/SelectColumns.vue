@@ -11,63 +11,19 @@
         :data-source="queryWorkSheetData.data.value"
         :pagination="false"
       >
-        <template #headerCell="{ column }">
+        <template #headerCell="{ index }">
           <a-select
-            v-model:value="
-              // @ts-ignore
-              column.match
-            "
-            :options="options"
-            placeholder="请选择"
+            :value="table_header[index]?.match ?? '__ignore__'"
+            :options="columnOptions"
+            placeholder="不导入此列"
             allow-clear
-            @change="
-              (v: string | undefined) => {
-                // @ts-ignore
-                const col = column.col as number
-                console.log(v, column)
-                if (v !== undefined) {
-                  const vv = v
-                  loadContext[vv] = col
-
-                  // 移除其他重复
-                  table_header = [
-                    ...table_header.map(h => {
-                      if (h.col === col) {
-                        h.match = v
-                      }
-                      else if (h.match === v) {
-                        h.match = undefined
-                      }
-                      return h
-                    }),
-                  ]
-                }
-                else {
-                  table_header = [
-                    ...table_header.map(h => {
-                      if (h.col === col) {
-                        h.match = undefined
-                      }
-                      return h
-                    }),
-                  ]
-
-                  Object.keys(loadContext)
-                    .filter(k => {
-                      return loadContext[k] === col
-                    })
-                    .forEach(k => {
-                      loadContext[k] = null
-                    })
-                }
-              }
-            "
+            @change="(value: string | undefined) => updateMatch(index, value)"
           />
         </template>
       </a-table>
     </div>
     <div class="text-gray-600 dark:text-gray-300">
-      注：这里只展示前五行数据
+      注：这里只展示前五行数据；只需配对必填字段，其他列可以不选
     </div>
   </div>
 </template>
@@ -88,6 +44,11 @@ const props = defineProps<{
 const { path, selectedSheet, dataIncludeHeader, loadContext }
   = inject<ImportContext>(IMPORT_CONTEXT_KEY)!
 
+const columnOptions = computed(() => [
+  { label: '不导入此列', value: '__ignore__' },
+  ...props.options,
+])
+
 const table_header = ref<
   {
     title: string
@@ -98,43 +59,72 @@ const table_header = ref<
   }[]
 >([])
 
+function rebuildContext() {
+  const context = Object.fromEntries(
+    props.options.map(option => [option.value, null]),
+  ) as Record<string, number | null>
+  for (const header of table_header.value) {
+    if (header.match && header.match in context)
+      context[header.match] = header.col
+  }
+  loadContext.value = context
+}
+
+function updateMatch(column: number, value: string | undefined) {
+  const match = props.options.some(option => option.value === value)
+    ? value
+    : undefined
+  table_header.value = table_header.value.map(header => ({
+    ...header,
+    match:
+      header.col === column
+        ? match
+        : header.match === match
+          ? undefined
+          : header.match,
+  }))
+  rebuildContext()
+}
+
 const queryWorkSheetData = useQuery({
   retry: false,
+  staleTime: 0,
+  refetchOnMount: 'always',
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
   queryKey: ['/sys/dataloader/load/worksheet/data', path, selectedSheet],
   enabled: computed(() => !!path.value && !!selectedSheet.value),
   placeholderData: [],
   queryFn: async () => {
+    table_header.value = []
+    rebuildContext()
+    const requestedPath = path.value
+    const requestedSheet = selectedSheet.value
     const res = (await instance.post(`/sys/dataloader/load/worksheet/data`, {
       path: path.value,
       sheet: selectedSheet.value,
     })) as string[][]
 
-    // 不消耗第一行数据
+    if (path.value !== requestedPath || selectedSheet.value !== requestedSheet)
+      return []
     const row1 = res[0] || []
+    table_header.value = row1.map((cell, index) => ({
+      title: cell,
+      dataIndex: `col${index}`,
+      key: `col${index}`,
+      col: index,
+      match: props.options.find(o => o.label === cell || o.alias.includes(cell))
+        ?.value,
+    }))
 
-    // 所有的index从0开始
-    if (row1.length !== 0) {
-      const row1_map = row1.map((i) => {
-        const find = props.options.find(
-          o => o.label === i || o.alias.includes(i),
-        )
-        if (find) {
-          const col = row1.indexOf(i)
-          loadContext.value[find.value] = col
-          return { value: i, match: find.value }
-        }
-
-        return { value: i, match: undefined }
-      })
-
-      table_header.value = row1_map.map((cell, cellIndex) => ({
-        title: cell.value,
-        dataIndex: `col${cellIndex}`,
-        key: `col${cellIndex}`,
-        col: cellIndex,
-        match: cell.match,
-      }))
+    const seen = new Set<string>()
+    for (const header of table_header.value) {
+      if (header.match && seen.has(header.match))
+        header.match = undefined
+      if (header.match)
+        seen.add(header.match)
     }
+    rebuildContext()
 
     return res.map(row =>
       Object.fromEntries(
